@@ -13,6 +13,13 @@ from tkinter import (ttk,
 from __sekretarz_lang import LANG
 from __zoomed_canvas import ZoomAdvanced
 
+def master_resolver(curr_widget, searched_attr):
+    master = curr_widget.nametowidget(curr_widget.winfo_parent())
+    while True:
+        if hasattr(master, searched_attr):
+            return master
+        master = curr_widget.nametowidget(master.winfo_parent())
+
 
 class ExtraField(ttk.Frame):
     def __init__(self, field_name=None, field_val=None, file_id=None, project=None, **kwargs):
@@ -149,22 +156,28 @@ class BaseProjectView(ttk.Frame):
         ttk.Label(master=self.menu_bar, text=f'{LANG.get("proj_name")} {self.project.get("name")}').pack(padx=15, pady=10)
 
         self.left_pan = ttk.Frame(master=self)
-        self.left_pan.grid(row=1, column=0, sticky=tk.NSEW)
+        self.left_pan.grid(row=1, column=0, rowspan=2, sticky=tk.NSEW)
+
+        self.left_pan.columnconfigure(0)
+
+        self.left_pan.rowconfigure(0)
+        self.left_pan.rowconfigure(1)
+
         self.tree_view = TreePan(master=self.left_pan)
-        self.tree_view.grid()
+        self.tree_view.grid(row=0, column=0, sticky=tk.NSEW)
+
+        self.detail_view = ttk.Frame(master=self.left_pan)
+        self.detail_view.grid(row=1, column=0, sticky=tk.NSEW)
 
         self.right_pan = ttk.Frame(master=self)
         self.right_pan.grid(row=0, column=1, rowspan=3, sticky=tk.NSEW)
-
-        self.down_pan = ttk.Frame(master=self)
-        self.down_pan.grid(row=2, column=0, sticky=tk.NSEW)
 
         self.pat_formats = re.compile(r"(.png$|.jpg$|.jpeg$)")
 
         if self.project["files"]:
             self.tree_view.populate()
         else:
-            ttk.Label(master=self.down_pan, text=LANG.get("no_files")).grid()
+            ttk.Label(master=self.detail_view, text=LANG.get("no_files")).grid()
 
     def __ignore_patterns(self, path, names):
         return [f for f in names if pathlib.Path(path, f).is_file() and not self.pat_formats.search(f)]
@@ -248,7 +261,7 @@ class TreePan(ttk.Frame):
 
         self.tree.bind('<<TreeviewSelect>>', self.selecting_item)
 
-        self.project = self.master.master.project
+        self.project = self.nametowidget(".").project
 
     def populate(self):
         for item in self.tree.get_children():
@@ -260,13 +273,13 @@ class TreePan(ttk.Frame):
                                                      "%Y-%m-%d %H-%M-%S ")))
 
     def selecting_item(self, event):
-        for child in self.master.master.right_pan.winfo_children():
+        for child in master_resolver(self, "right_pan").winfo_children():
             child.destroy()
 
-        for child in self.master.master.down_pan.winfo_children():
+        for child in master_resolver(self, "detail_view").winfo_children():
             child.destroy()
 
-        self.project = self.master.master.master.load_project()
+        self.project = self.nametowidget(".").load_project()
 
         files = self.project["files"]
 
@@ -274,83 +287,83 @@ class TreePan(ttk.Frame):
 
         item = self.tree.item(curr_item)
 
-        self.master.master.down_pan.columnconfigure(0)
-        self.master.master.down_pan.columnconfigure(1)
-        self.master.master.down_pan.columnconfigure(2)
+        self.master.detail_view.columnconfigure(0)
+        self.master.detail_view.columnconfigure(1)
+        self.master.detail_view.columnconfigure(2)
 
         for row in range(8):
-            self.master.master.down_pan.rowconfigure(row)
+            self.master.detail_view.rowconfigure(row)
 
-        # item_vals = item.get("values")
-        #
-        # ttk.Label(master=self.master.down_pan, text=LANG.get("id")).grid(row=0, column=0)
-        # ent_name = ttk.Entry(master=self.master.down_pan, width=100)
-        # ent_name.insert(tk.END, item_vals[0])
-        # ent_name.grid(row=0, column=1)
-        #
-        # ttk.Button(master=self.master.down_pan, text=LANG.get("f_rename")).grid(row=0, column=2)
-        #
-        # ttk.Label(master=self.master.down_pan, text=LANG.get("source")).grid(row=1, column=0)
-        # ent_src = ttk.Entry(master=self.master.down_pan, width=100)
-        # ent_src.insert(tk.END, item_vals[1])
-        # ent_src.grid(row=1, column=1)
-        #
-        # ttk.Button(master=self.master.down_pan, text=LANG.get("s_rename")).grid(row=1, column=2)
-        #
-        # ttk.Label(master=self.master.down_pan, text=LANG.get("path")).grid(row=2, column=0)
-        # path_broken = item_vals[2]
-        # if len(item_vals[2]) > 100:
-        #     path_broken = path_broken[:99] + "\n    " + path_broken[99:]
-        # lbl_path = ttk.Label(master=self.master.down_pan, text=path_broken, width=100)
-        # lbl_path.grid(row=2, column=1)
-        #
-        # ttk.Label(master=self.master.down_pan, text=LANG.get("labels")).grid(row=3, column=0)
-        # frame_lbls = ttk.Frame(master=self.master.down_pan)
-        # frame_lbls.grid(row=3, column=1)
-        #
-        # ttk.Button(master=self.master.down_pan, text=LANG.get("manage_labels"),
-        #            command=lambda x=project, y=item_vals, z=curr_item: self.manage_labels(x, y, z)).grid(row=3,
-        #                                                                                                  column=2)
-        #
-        # for lbl in files[item_vals[0]]["labels"]:
-        #     ttk.Label(master=frame_lbls, text=lbl).pack(side=tk.LEFT, padx=5, pady=2)
-        #
-        # ttk.Label(master=self.master.down_pan, text=LANG.get("comment")).grid(row=4, column=0)
-        #
-        # comment_temp = files.get(item_vals[0]).get("comment")
-        # tbox_com = scrolledtext.ScrolledText(master=self.master.down_pan, height=4)
-        # tbox_com.insert("1.0", comment_temp)
-        # tbox_com.grid(row=4, column=1)
-        #
-        # ttk.Button(master=self.master.down_pan, text=LANG.get("alter_comment")).grid(row=4, column=2)
-        #
-        # ttk.Label(master=self.master.down_pan, text=LANG.get("extra_fields")).grid(row=5, column=0)
-        # self.frame_extra = ttk.Frame(master=self.master.down_pan)
-        # self.frame_extra.grid(row=5, column=1)
-        #
-        # self.frame_extra.columnconfigure(0)
-        # self.frame_extra.columnconfigure(1)
-        # self.frame_extra.columnconfigure(2)
-        #
-        # fields_temp = files.get(item_vals[0]).get("extra_fields")
-        #
-        # num_fields = len(fields_temp)
-        #
-        # for r in range(num_fields):
-        #     if r % 3 == 0:
-        #         self.frame_extra.rowconfigure(r // 3)
-        #
-        # for index, (f, val) in enumerate(fields_temp.items()):
-        #     ExtraField(master=self.frame_extra, field_name=f, field_val=val, file_id=item_vals[0],
-        #                project=project).grid(row=index // 3, column=index % 3)
-        #
-        # ttk.Button(master=self.master.down_pan, text=LANG.get("manage_fields"),
-        #            command=lambda x=project, y=item_vals[0]: self.manage_fields(x, y)).grid(row=5, column=2)
-        #
-        # ttk.Label(master=self.master.down_pan, text=LANG.get("c_time")).grid(row=6, column=0)
-        # lbl_ctime = ttk.Label(master=self.master.down_pan, text=str(item_vals[4]), width=100)
-        # lbl_ctime.grid(row=6, column=1)
-        #
-        # ttk.Button(master=self.master.down_pan, text=LANG.get("del_file")).grid(row=7, column=1)
-        #
-        # ZoomAdvanced(mainframe=self.master.right_pan, path=pathlib.Path(item.get("values")[2])).grid(sticky=tk.NSEW)
+        item_vals = item.get("values")
+
+        ttk.Label(master=self.master.detail_view, text=LANG.get("id")).grid(row=0, column=0)
+        ent_name = ttk.Entry(master=self.master.detail_view, width=100)
+        ent_name.insert(tk.END, item_vals[0])
+        ent_name.grid(row=0, column=1)
+
+        ttk.Button(master=self.master.detail_view, text=LANG.get("f_rename")).grid(row=0, column=2)
+
+        ttk.Label(master=self.master.detail_view, text=LANG.get("source")).grid(row=1, column=0)
+        ent_src = ttk.Entry(master=self.master.detail_view, width=100)
+        ent_src.insert(tk.END, item_vals[1])
+        ent_src.grid(row=1, column=1)
+
+        ttk.Button(master=self.master.detail_view, text=LANG.get("s_rename")).grid(row=1, column=2)
+
+        ttk.Label(master=self.master.detail_view, text=LANG.get("path")).grid(row=2, column=0)
+        path_broken = item_vals[2]
+        if len(item_vals[2]) > 100:
+            path_broken = path_broken[:99] + "\n    " + path_broken[99:]
+        lbl_path = ttk.Label(master=self.master.detail_view, text=path_broken, width=100)
+        lbl_path.grid(row=2, column=1)
+
+        ttk.Label(master=self.master.detail_view, text=LANG.get("labels")).grid(row=3, column=0)
+        frame_lbls = ttk.Frame(master=self.master.detail_view)
+        frame_lbls.grid(row=3, column=1)
+
+        ttk.Button(master=self.master.detail_view, text=LANG.get("manage_labels"),
+                   command=lambda x=project, y=item_vals, z=curr_item: self.manage_labels(x, y, z)).grid(row=3,
+                                                                                                         column=2)
+
+        for lbl in files[item_vals[0]]["labels"]:
+            ttk.Label(master=frame_lbls, text=lbl).pack(side=tk.LEFT, padx=5, pady=2)
+
+        ttk.Label(master=self.master.detail_view, text=LANG.get("comment")).grid(row=4, column=0)
+
+        comment_temp = files.get(item_vals[0]).get("comment")
+        tbox_com = scrolledtext.ScrolledText(master=self.master.detail_view, height=4)
+        tbox_com.insert("1.0", comment_temp)
+        tbox_com.grid(row=4, column=1)
+
+        ttk.Button(master=self.master.detail_view, text=LANG.get("alter_comment")).grid(row=4, column=2)
+
+        ttk.Label(master=self.master.detail_view, text=LANG.get("extra_fields")).grid(row=5, column=0)
+        self.frame_extra = ttk.Frame(master=self.master.detail_view)
+        self.frame_extra.grid(row=5, column=1)
+
+        self.frame_extra.columnconfigure(0)
+        self.frame_extra.columnconfigure(1)
+        self.frame_extra.columnconfigure(2)
+
+        fields_temp = files.get(item_vals[0]).get("extra_fields")
+
+        num_fields = len(fields_temp)
+
+        for r in range(num_fields):
+            if r % 3 == 0:
+                self.frame_extra.rowconfigure(r // 3)
+
+        for index, (f, val) in enumerate(fields_temp.items()):
+            ExtraField(master=self.frame_extra, field_name=f, field_val=val, file_id=item_vals[0],
+                       project=project).grid(row=index // 3, column=index % 3)
+
+        ttk.Button(master=self.master.detail_view, text=LANG.get("manage_fields"),
+                   command=lambda x=project, y=item_vals[0]: self.manage_fields(x, y)).grid(row=5, column=2)
+
+        ttk.Label(master=self.master.detail_view, text=LANG.get("c_time")).grid(row=6, column=0)
+        lbl_ctime = ttk.Label(master=self.master.detail_view, text=str(item_vals[4]), width=100)
+        lbl_ctime.grid(row=6, column=1)
+
+        ttk.Button(master=self.master.detail_view, text=LANG.get("del_file")).grid(row=7, column=1)
+
+        ZoomAdvanced(mainframe=self.master.right_pan, path=pathlib.Path(item.get("values")[2])).grid(sticky=tk.NSEW)
