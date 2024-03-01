@@ -10,42 +10,42 @@ from PIL import Image, ImageTk
 OS = platform.system()
 
 
-# class AutoScrollbar(ttk.Scrollbar):
-#     ''' A scrollbar that hides itself if it's not needed.
-#         Works only if you use the grid geometry manager '''
-#     def set(self, lo, hi):
-#         if float(lo) <= 0.0 and float(hi) >= 1.0:
-#             self.grid_remove()
-#         else:
-#             self.grid()
-#             ttk.Scrollbar.set(self, lo, hi)
-#
-#     def pack(self, **kw):
-#         raise tk.TclError('Cannot use pack with this widget')
-#
-#     def place(self, **kw):
-#         raise tk.TclError('Cannot use place with this widget')
+class AutoScrollbar(ttk.Scrollbar):
+    ''' A scrollbar that hides itself if it's not needed.
+        Works only if you use the grid geometry manager '''
+    def set(self, lo, hi):
+        if float(lo) <= 0.0 and float(hi) >= 1.0:
+            self.grid_remove()
+        else:
+            self.grid()
+            ttk.Scrollbar.set(self, lo, hi)
+
+    def pack(self, **kw):
+        raise tk.TclError('Cannot use pack with this widget')
+
+    def place(self, **kw):
+        raise tk.TclError('Cannot use place with this widget')
 
 
 class ZoomAdvanced(ttk.Frame):
     ''' Advanced zoom of the image '''
-    def __init__(self, mainframe, path):
+    def __init__(self, master, path):
         ''' Initialize the main Frame '''
-        ttk.Frame.__init__(self, master=mainframe)
+        ttk.Frame.__init__(self, master=master)
         # self.master.title('Zoom with mouse wheel')
         # self.master.geometry('800x600')
         # Vertical and horizontal scrollbars for canvas
-        # vbar = AutoScrollbar(self.master, orient='vertical')
-        # hbar = AutoScrollbar(self.master, orient='horizontal')
-        # vbar.grid(row=0, column=1, sticky='ns')
-        # hbar.grid(row=1, column=0, sticky='we')
+        # self.vbar = AutoScrollbar(self.master, orient='vertical')
+        # self.hbar = AutoScrollbar(self.master, orient='horizontal')
+        # self.vbar.grid(row=0, column=1, sticky='ns')
+        # self.hbar.grid(row=1, column=0, sticky='we')
         # Create canvas and put image on it
         self.canvas = tk.Canvas(self.master, highlightthickness=0,)
-                                # xscrollcommand=hbar.set, yscrollcommand=vbar.set)
+                                # xscrollcommand=self.hbar.set, yscrollcommand=self.vbar.set)
         self.canvas.grid(row=0, column=0, sticky='nswe')
         self.canvas.update()  # wait till canvas is created
-        # vbar.configure(command=self.scroll_y)  # bind scrollbars to the canvas
-        # hbar.configure(command=self.scroll_x)
+        # self.vbar.configure(command=self.scroll_y)  # bind scrollbars to the canvas
+        # self.hbar.configure(command=self.scroll_x)
         # Make the canvas expandable
         self.master.rowconfigure(0, weight=1)
         self.master.columnconfigure(0, weight=1)
@@ -94,7 +94,7 @@ class ZoomAdvanced(ttk.Frame):
 
         x0 = self.canvas.canvasx(0)
 
-        for _ in range(10):
+        for _ in range(5):
             self.wheel(mouse_zoom_in)
 
             a0 = self.canvas.coords(self.container)[0]
@@ -203,3 +203,4 @@ if __name__ == "__main__":
     root = tk.Tk()
     app = ZoomAdvanced(root, path=path)
     root.mainloop()
+    
