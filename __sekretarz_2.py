@@ -12,7 +12,7 @@ from tkinter import filedialog, scrolledtext, messagebox
 from __zoomed_canvas import ZoomAdvanced
 from __sekretarz_lang import LANG
 from __sekretarz_subclass import (NewProWindow,
-                                  BaseProjectView)
+                                  BaseProjectView, MyFrame)
 
 # files = {"id": "", "source": "link/app/whatever", "f_name": "nazwa pliku", "path": "file location", "labels": [], "comment": "", "extra_fields": {}, "c_time": ""}
 #
@@ -29,20 +29,26 @@ base_proj = {
     }
 
 
-
-
 class MainWindow(tk.Tk):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, *kwargs)
 
         self.title(LANG.get("title"))
         self.geometry("400x300")
+        self.columnconfigure(0, weight=1)
+        self.rowconfigure(0, weight=1)
 
-        self.main_frame = ttk.Frame(master=self, )
+        self.main_frame = MyFrame(master=self, )
         self.main_frame.grid()
 
-        self.menu = ttk.Frame(master=self.main_frame)
+        self.main_frame.columnconfigure(0, weight=1)
+        self.main_frame.rowconfigure(0, weight=1)
+
+        self.menu = MyFrame(master=self.main_frame)
         self.menu.grid()
+
+        self.menu.rowconfigure((0, 1, 2, 3), weight=0)
+        self.menu.columnconfigure(0, weight=1)
 
         self.btn_create_pro = ttk.Button(master=self.menu, text=LANG.get("new_pro"), command=self.new_pro)
         self.btn_create_pro.grid()
@@ -54,7 +60,7 @@ class MainWindow(tk.Tk):
         # self.btn_list_files.grid()
 
         self.btn_quit = ttk.Button(master=self.menu, text=LANG.get("quit"), command=self.destroy)
-        self.btn_quit.quit()
+        self.btn_quit.grid()
 
         self.pat_formats = re.compile(r"(.png$|.jpg$|.jpeg$)")
 
@@ -70,8 +76,8 @@ class MainWindow(tk.Tk):
         for c in self.main_frame.winfo_children():
             c.destroy()
 
-        self.main_frame = BaseProjectView(master=self)
-        self.main_frame.grid(sticky=tk.NSEW)
+        self.menu = BaseProjectView(master=self.main_frame)
+        self.menu.grid(sticky=tk.NSEW)
 
     def open_pro(self):
         d_path = filedialog.askdirectory(initialdir=os.getcwd(), title=LANG.get("sel_dir"))
@@ -96,6 +102,7 @@ class MainWindow(tk.Tk):
         with open(pathlib.Path(self.project["main_dir"], "base.json"), mode="r") as f:
             self.project = json.load(f)
         return self.project
+
 
 if __name__ == "__main__":
     App = MainWindow()
