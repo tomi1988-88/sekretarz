@@ -72,7 +72,7 @@ LANG_eng = {
     "confirm_sel": "Save Changes",
     "go_to_labels": "Go to Label Manager",
     "all_lbls": "All Labels in the Project",
-    "file_lbls": "Labels related to th File",
+    "file_lbls": "Labels related to the File",
     "sel_lbls_incl": "Select Labels to Include",
     "sel_lbls_excl": "Select Labels to Exclude",
     "show_all": "Show all",
@@ -84,5 +84,6 @@ LANG_eng = {
     "curr_fields": "Current Fields",
     "field_name": "Field name",
     "field_val": "Field value",
+    "same_comment": "New Comment looks exactly like the previous one"
 }
 LANG = LANG_eng
