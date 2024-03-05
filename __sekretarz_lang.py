@@ -29,7 +29,7 @@ LANG_eng = {
     "source": "Source",
     "path": "Path",
     "c_time": "Creation time",
-    "add_f_copy_files": "Updating project and copying files. I'll let you kon when I'm finished :)",
+    "add_f_copy_files": "Updating project and copying files. I'll let you know when I'm finished :)",
     "update_copy_finish": "Updating project and copying files finished. Total files added: ",
     "no_files_added": "Something went wrong: No files added.",
     "submit": "Submit",
@@ -84,6 +84,12 @@ LANG_eng = {
     "curr_fields": "Current Fields",
     "field_name": "Field name",
     "field_val": "Field value",
-    "same_comment": "New Comment looks exactly like the previous one"
+    "same_comment": "New Comment looks exactly like the previous one",
+    "same_source": "New Source looks exactly like the previous one",
+    "same_f_name": "New File name looks exactly like the previous one",
+    "f_name_wrong_suffix": "New File name has a different suffix. Keep the same file extension to prevent incompatibility.",
+    "fields_manager": "Fields Manager",
+    "rename_field": "Rename Field",
+    "change_val_field": "Change Field value"
 }
 LANG = LANG_eng

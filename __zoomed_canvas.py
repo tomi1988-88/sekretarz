@@ -49,6 +49,7 @@ class ZoomAdvanced(ttk.Frame):
         # Make the canvas expandable
         self.master.rowconfigure(0, weight=1)
         self.master.columnconfigure(0, weight=1)
+
         # Bind events to the Canvas
         self.canvas.bind('<Configure>', self.show_image)  # canvas is resized
         self.canvas.bind('<ButtonPress-1>', self.move_from)
