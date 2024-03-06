@@ -81,7 +81,7 @@ LANG_eng = {
     "add_field": "Add Field",
     "edit_field": "Edit Field",
     "del_field": "Delete Field",
-    "curr_fields": "Current Fields",
+    "curr_field": "Current Field: ",
     "field_name": "Field name",
     "field_val": "Field value",
     "same_comment": "New Comment looks exactly like the previous one",
@@ -90,6 +90,7 @@ LANG_eng = {
     "f_name_wrong_suffix": "New File name has a different suffix. Keep the same file extension to prevent incompatibility.",
     "fields_manager": "Fields Manager",
     "rename_field": "Rename Field",
-    "change_val_field": "Change Field value"
+    "change_val_field": "Change Field value",
+    "bind_manager": "Binding Manager"
 }
 LANG = LANG_eng
