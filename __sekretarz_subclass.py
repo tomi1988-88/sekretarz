@@ -17,9 +17,11 @@ from __zoomed_canvas import ZoomAdvanced
 
 
 class MyFrame(ttk.Frame):
-    def __init__(self, driver=None, *args, **kwargs):
+    def __init__(self, driver=None, driver_frame=None, driver_attr=None, *args, **kwargs):
         super(MyFrame, self).__init__(*args, **kwargs)
         self.driver = driver
+        self.driver_frame = driver_frame
+        self.driver_attr = driver_attr
 
     def grid(self, *args, **kwargs):
         if kwargs.get("sticky"):
@@ -103,13 +105,13 @@ class NewProWindow(tk.Toplevel):
 
     def create_project(self, project_name):
         if self.pat_format.search(project_name) or project_name == "":
-            messagebox.showerror(f'{LANG.get("error")}', f'{LANG.get("wrong_dir_name")}')
+            messagebox.showerror(master=self, title=f'{LANG.get("error")}', message=f'{LANG.get("wrong_dir_name")}')
             return
 
         path = pathlib.Path(self.curr_dir, project_name)
 
         if path.exists():
-            messagebox.showerror(f'{LANG.get("error")}', f'{LANG.get("dir_exists")}')
+            messagebox.showerror(master=self, title=f'{LANG.get("error")}', message=f'{LANG.get("dir_exists")}')
             return
 
         path.mkdir()
@@ -120,7 +122,11 @@ class NewProWindow(tk.Toplevel):
             "files": {},
             "labels": [],
             "last_id": 0,
-            "links": []
+            "links": [],
+            "binds": {"vertical": [],
+                      "horizontal": {
+
+                      }}
         }
 
         with open(pathlib.Path(path, "base.json"), mode="w") as file:
@@ -167,6 +173,8 @@ class BaseProjectView(MyFrame):
         #
         ttk.Button(master=self.menu_bar, text=LANG.get("filter_labels"),
                    command=self.filter_manager).pack(side=tk.LEFT)
+        ttk.Button(master=self.menu_bar, text=LANG.get("bind_manager"),
+                   command=self.binding_manager).pack(side=tk.LEFT)
 
         ttk.Label(master=self.menu_bar, text=f'{LANG.get("proj_name")} {self.project.get("name")}').pack(padx=15,
                                                                                                          pady=10)
@@ -199,6 +207,7 @@ class BaseProjectView(MyFrame):
         self.src_manager = None
         self.lbl_manager = None
         self.flt_manager = None
+        self.bin_manager = None
 
         if self.project["files"]:
             self.tree_view.populate()
@@ -237,7 +246,8 @@ class BaseProjectView(MyFrame):
                     "labels": [],
                     "comment": "",
                     "extra_fields": {},
-                    "c_time": path.stat().st_mtime
+                    "c_time": path.stat().st_mtime,
+                    "binds": []
                 }
 
         files_added = pro_counter - self.project["last_id"]
@@ -251,10 +261,10 @@ class BaseProjectView(MyFrame):
         self.reset_tree()
 
         if files_added > 0:
-            messagebox.showinfo(LANG.get("add_folder"), f'{LANG.get("update_copy_finish")}{files_added}')
+            messagebox.showinfo(master=self, title=LANG.get("add_folder"), message=f'{LANG.get("update_copy_finish")}{files_added}')
             self.reset_tree()
         else:
-            messagebox.showerror(LANG.get("add_folder"), LANG.get("no_files_added"))
+            messagebox.showerror(master=self, title=LANG.get("add_folder"), message=LANG.get("no_files_added"))
 
     def reset_tree(self):
         self.project = self.nametowidget(".").load_project()
@@ -272,6 +282,272 @@ class BaseProjectView(MyFrame):
     def filter_manager(self):
         self.flt_manager = FilterManager()
 
+    def distribute_labels_to_dirs(self):
+        # todo
+        ...
+
+    def manage_all_fields(self):
+        # todo
+        ...
+
+    def binding_manager(self):
+        self.bin_manager = BindingManager()
+        # todo
+        # relacje: vertical (parent, child,) horizontal (sibling)
+        # add "binds" to the project
+        # binds structure: {bind_id: {vertical: (parent, child)} OR {horizontal: [sibling, sibling, sibling]}}
+        # add "bind_id" to project["files"][file_id]
+        # view:
+        # cols: 3
+        # rows: 2
+        # col 0 row 0: zoom_view_0
+        # col 1 row 0: zoom_view_1
+        # col 2 row 0: zoom_view_2
+
+        # col 0 row 1: tree: binds of all files 0
+        # col 1, 2 row 1 - colspan=2: down_pan
+        # down_pan: cols: 3, row: 1
+        # down_pan 0, 0 = tree: lst of files 1
+        # down_pan 1, 0 = actions
+        # down_pan 2, 0 = tree: lst of files 2
+
+        # actions:
+        # bind as parent to - ignore if bind exists
+        # bind as child to - ignore if bind exists
+        # bind as sibling to
+        # unbind as parent/child
+        # unbind as sibling
+        # show all binds
+        # go back
+
+        ...
+
+class BindingManager(tk.Toplevel):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
+        self.title(LANG.get("bind_manager"))
+        self.grab_set()
+        self.columnconfigure(0, weight=1)
+        self.rowconfigure(0, weight=1)
+
+        self.bind_frame = MyFrame(master=self)
+        self.bind_frame.grid()
+
+        self.bind_frame.columnconfigure((0, 1, 2), weight=1)
+        self.bind_frame.rowconfigure((0, 1), weight=1)
+
+        style_1 = ttk.Style()
+        style_1.configure("_1.TFrame", background="black")
+
+        style_1.configure("_2.TFrame", background="yellow")
+
+        self.zoom_frame_0 = MyFrame(master=self.bind_frame)
+        self.zoom_frame_0.grid(column=0, row=0)
+        self.zoom_frame_0.columnconfigure(0, weight=1)
+        self.zoom_frame_0.rowconfigure(0, weight=1)
+        self.zoom_view_0 = ZoomPan(master=self.zoom_frame_0)
+
+        self.zoom_frame_1 = MyFrame(master=self.bind_frame)
+        self.zoom_frame_1.grid(column=1, row=0)
+        self.zoom_frame_1.columnconfigure(0, weight=1)
+        self.zoom_frame_1.rowconfigure(0, weight=1)
+        self.zoom_view_1 = ZoomPan(master=self.zoom_frame_1)
+
+        self.zoom_frame_2 = MyFrame(master=self.bind_frame)
+        self.zoom_frame_2.grid(column=2, row=0)
+        self.zoom_frame_2.columnconfigure(0, weight=1)
+        self.zoom_frame_2.rowconfigure(0, weight=1)
+        self.zoom_view_2 = ZoomPan(master=self.zoom_frame_2)
+
+        self.tree_binded = TreeBinded(master=self.bind_frame, driver_frame=self.zoom_frame_0, driver_attr=self.zoom_view_0)
+        self.tree_binded.grid(column=0, row=1)
+        # self.tree_binded.populate()
+
+        self.bottom_pan = MyFrame(master=self.bind_frame, style="_2.TFrame")
+        self.bottom_pan.grid(column=1, row=1, columnspan=2)
+        self.bottom_pan.columnconfigure((0, 1, 2), weight=1)
+        self.bottom_pan.rowconfigure(0, weight=1)
+
+        self.bottom_pan_left = MyFrame(master=self.bottom_pan)
+        self.bottom_pan_left.grid(column=0, row=0)
+        self.bottom_pan_left.columnconfigure(0, weight=1)
+        self.bottom_pan_left.rowconfigure(0, weight=1)
+        self.bottom_pan_centre = MyFrame(master=self.bottom_pan, style="_1.TFrame")
+        self.bottom_pan_centre.grid(column=1, row=0)
+        self.bottom_pan_centre.columnconfigure(0, weight=1)
+        self.bottom_pan_centre.rowconfigure((0, 1, 2, 3, 4, 5, 6), weight=1)
+        self.bottom_pan_right = MyFrame(master=self.bottom_pan, style="_1.TFrame")
+        self.bottom_pan_right.grid(column=2, row=0)
+        self.bottom_pan_right.columnconfigure(0, weight=1)
+        self.bottom_pan_right.rowconfigure(0, weight=1)
+
+        self.tree_choice = TreeChoiceOrToBind(master=self.bottom_pan_left, driver_frame=self.zoom_frame_1, driver_attr=self.zoom_view_1)
+        self.tree_choice.grid()
+        self.tree_choice.populate()
+
+        ttk.Button(master=self.bottom_pan_centre).grid()
+        ttk.Button(master=self.bottom_pan_centre).grid()
+        ttk.Button(master=self.bottom_pan_centre).grid()
+        ttk.Button(master=self.bottom_pan_centre).grid()
+        ttk.Button(master=self.bottom_pan_centre).grid()
+        ttk.Button(master=self.bottom_pan_centre).grid()
+        ttk.Button(master=self.bottom_pan_centre, text=LANG.get("go_back"), command=self.destroy).grid()
+
+        self.tree_to_bind = TreeChoiceOrToBind(master=self.bottom_pan_right, driver_frame=self.zoom_frame_2, driver_attr=self.zoom_view_2)
+        self.tree_to_bind.grid()
+        self.tree_to_bind.populate()
+
+
+class TreeBinded(MyFrame):
+    def __init__(self, *args, **kwargs):
+        super(TreeBinded, self).__init__(*args, **kwargs)
+
+        self.driver_frame = kwargs.get("driver_frame")
+        self.driver_attr = kwargs.get("driver_attr")
+        self.rowconfigure(0, weight=1)
+        self.rowconfigure(1, weight=0)
+        self.columnconfigure(0, weight=1)
+        self.columnconfigure(1, weight=0)
+
+        self.tree = ttk.Treeview(master=self, show="headings")
+
+        columns = ("id", "source", "labels")
+        self.tree.configure(columns=columns)
+
+        self.tree.heading("id", text=LANG.get("id"))
+        self.tree.heading("source", text=LANG.get("source"))
+        self.tree.heading("labels", text=LANG.get("labels"))
+
+        self.tree.grid(row=0, column=0, sticky=tk.NSEW)
+
+        scroll_y = ttk.Scrollbar(master=self, orient=tk.VERTICAL, command=self.tree.yview)
+        scroll_y.grid(row=0, column=1, sticky=tk.NS)
+        self.tree.configure(yscrollcommand=scroll_y.set)
+
+        scroll_x = ttk.Scrollbar(master=self, orient=tk.HORIZONTAL, command=self.tree.xview)
+        scroll_x.grid(row=1, column=0, sticky=tk.EW)
+        self.tree.configure(xscrollcommand=scroll_x.set)
+
+        self.tree.bind('<<TreeviewSelect>>', self.selecting_item)
+
+        self.project = self.nametowidget(".").project
+
+    def update_binds(self, file_id):
+        self.project = self.nametowidget(".").load_project()
+        binds = self.project["files"][file_id].get("binds")
+        if binds:
+            curr_binds = []
+            for bind in binds:
+                curr_binds.append(self.project["binds"].get(bind))
+
+            for c_bind in curr_binds:
+                ...
+
+    def selecting_item(self, event):
+        try:
+            for child in self.driver_frame.winfo_children():
+                child.destroy()
+        except tk.TclError:
+            return
+        except KeyError:
+            return
+
+        item_index = self.tree.focus()
+        item_obj = self.tree.item(item_index)
+        item_vals = item_obj.get("values")
+
+        try:
+            file_id = item_vals[0]
+            path_to_screen = self.project["files"][file_id]["path"]
+        except IndexError:
+            return
+
+        try:
+            self.driver_attr = ZoomPan(master=self.driver_frame, path=path_to_screen)
+            gc.disable()
+            gc.collect()
+            gc.enable()
+        except tk.TclError:
+            return
+        except KeyError:
+            return
+
+class TreeChoiceOrToBind(MyFrame):
+    def __init__(self, *args, **kwargs):
+        super(TreeChoiceOrToBind, self).__init__(*args, **kwargs)
+
+        self.driver_frame = kwargs.get("driver_frame")
+        self.driver_attr = kwargs.get("driver_attr")
+
+        self.rowconfigure(0, weight=1)
+        self.rowconfigure(1, weight=0)
+        self.columnconfigure(0, weight=1)
+        self.columnconfigure(1, weight=0)
+
+        self.tree = ttk.Treeview(master=self, show="headings")
+
+        columns = ("id", "source", "labels")
+        self.tree.configure(columns=columns)
+
+        self.tree.heading("id", text=LANG.get("id"))
+        self.tree.heading("source", text=LANG.get("source"))
+        self.tree.heading("labels", text=LANG.get("labels"))
+
+        self.tree.grid(row=0, column=0, sticky=tk.NSEW)
+
+        scroll_y = ttk.Scrollbar(master=self, orient=tk.VERTICAL, command=self.tree.yview)
+        scroll_y.grid(row=0, column=1, sticky=tk.NS)
+        self.tree.configure(yscrollcommand=scroll_y.set)
+
+        scroll_x = ttk.Scrollbar(master=self, orient=tk.HORIZONTAL, command=self.tree.xview)
+        scroll_x.grid(row=1, column=0, sticky=tk.EW)
+        self.tree.configure(xscrollcommand=scroll_x.set)
+
+        self.tree.bind('<<TreeviewSelect>>', self.selecting_item)
+
+        self.project = self.nametowidget(".").project
+
+    def populate(self):
+        for item in self.tree.get_children():
+            self.tree.delete(item)
+
+        self.project = self.nametowidget(".").load_project()
+
+        for file_id, i in self.project["files"].items():
+            self.tree.insert("", tk.END, values=(file_id, i.get("source"), i.get("labels")))
+
+    def selecting_item(self, event):
+        try:
+            for child in self.driver_frame.winfo_children():
+                child.destroy()
+        except tk.TclError:
+            return
+        except KeyError:
+            return
+
+        item_index = self.tree.focus()
+        item_obj = self.tree.item(item_index)
+        item_vals = item_obj.get("values")
+
+        try:
+            file_id = item_vals[0]
+            path_to_screen = self.project["files"][file_id]["path"]
+        except IndexError:
+            return
+
+        try:
+            self.driver_attr = ZoomPan(master=self.driver_frame, path=path_to_screen)
+
+            self.master.tree_binded.update_binds()
+
+            gc.disable()
+            gc.collect()
+            gc.enable()
+        except tk.TclError:
+            return
+        except KeyError:
+            return
 
 class FilterManager(tk.Toplevel):
     def __init__(self, *args, **kwargs):
@@ -320,6 +596,7 @@ class FilterManager(tk.Toplevel):
         self.nametowidget(".!myframe.!baseprojectview").reset_tree()
 
     def filter(self):
+        # todo: add different options of filtering
         positive = self.lst_box_include.curselection()
         negative = self.lst_box_exclude.curselection()
 
@@ -340,7 +617,7 @@ class FilterManager(tk.Toplevel):
                 if p and not n:
                     tree_pan.tree.insert("", tk.END, values=(file_id, i.get("source"), i.get("path"), i.get("labels"),
                                                              dt.datetime.fromtimestamp(i.get("c_time")).strftime(
-                                                                 "%Y-%m-%d %H-%M-%S ")))
+                                                                 "%Y-%m-%d %H-%M-%S")))
 
         elif positive:
             for file_id, i in self.project["files"].items():
@@ -349,7 +626,7 @@ class FilterManager(tk.Toplevel):
                 if p:
                     tree_pan.tree.insert("", tk.END, values=(file_id, i.get("source"), i.get("path"), i.get("labels"),
                                                              dt.datetime.fromtimestamp(i.get("c_time")).strftime(
-                                                                 "%Y-%m-%d %H-%M-%S ")))
+                                                                 "%Y-%m-%d %H-%M-%S")))
         elif negative:
             for file_id, i in self.project["files"].items():
                 lbls = i["labels"]
@@ -357,11 +634,12 @@ class FilterManager(tk.Toplevel):
                 if not n:
                     tree_pan.tree.insert("", tk.END, values=(file_id, i.get("source"), i.get("path"), i.get("labels"),
                                                              dt.datetime.fromtimestamp(i.get("c_time")).strftime(
-                                                                 "%Y-%m-%d %H-%M-%S ")))
+                                                                 "%Y-%m-%d %H-%M-%S")))
 
         gc.disable()
         gc.collect()
         gc.enable()
+
 
 class LabelManager(tk.Toplevel):
     def __init__(self, *args, **kwargs):
@@ -408,7 +686,7 @@ class LabelManager(tk.Toplevel):
             self.nametowidget('.').save_project()
             self.project = self.nametowidget(".").load_project()
         else:
-            messagebox.showerror(LANG.get("labels"), LANG.get("no_labels"))
+            messagebox.showerror(master=self, title=LANG.get("labels"), message=LANG.get("no_labels"))
 
     def del_label(self):
         temp_lbl = self.lst_box.curselection()
@@ -420,8 +698,8 @@ class LabelManager(tk.Toplevel):
                 if temp_lbl in val.get("labels"):
                     counter += 1
 
-            res = messagebox.askyesno(LANG.get("labels"),
-                                      f'{LANG.get("ask_del_conf_1")}{counter}{LANG.get("ask_del_conf_2")}{temp_lbl}')
+            res = messagebox.askyesno(master=self, title=LANG.get("labels"),
+                                      message=f'{LANG.get("ask_del_conf_1")}{counter}{LANG.get("ask_del_conf_2")}{temp_lbl}')
 
             if res:
                 self.lst_box.delete(num_of_lbl)
@@ -439,7 +717,7 @@ class LabelManager(tk.Toplevel):
                 return
 
         else:
-            messagebox.showerror(LANG.get("labels"), LANG.get("no_label_selected"))
+            messagebox.showerror(master=self, title=LANG.get("labels"), message=LANG.get("no_label_selected"))
 
     def edit_label(self):
 
@@ -459,13 +737,13 @@ class LabelManager(tk.Toplevel):
             ttk.Button(master=self.edit_frame, text=LANG.get("submit"), command=self._edit).grid()
             ttk.Button(master=self.edit_frame, text=LANG.get("go_back"), command=self.edit_frame.destroy).grid()
         else:
-            messagebox.showerror(LANG.get("labels"), LANG.get("no_label_selected"))
+            messagebox.showerror(master=self, title=LANG.get("labels"), message=LANG.get("no_label_selected"))
 
     def _edit(self):
         new_lbl = self.ent_edit.get()
 
         if not new_lbl:
-            messagebox.showerror(LANG.get("labels"), LANG.get("no_new_label_name"))
+            messagebox.showerror(master=self, title=LANG.get("labels"), message=LANG.get("no_new_label_name"))
             self.edit_frame.destroy()
             return
 
@@ -474,8 +752,8 @@ class LabelManager(tk.Toplevel):
             if self.temp_lbl in val.get("labels"):
                 counter += 1
 
-        res = messagebox.askyesno(LANG.get("labels"),
-                                  f'{LANG.get("ask_edit_conf_1")}{counter}{LANG.get("ask_edit_conf_2")}{self.temp_lbl}')
+        res = messagebox.askyesno(master=self, title=LANG.get("labels"),
+                                  message=f'{LANG.get("ask_edit_conf_1")}{counter}{LANG.get("ask_edit_conf_2")}{self.temp_lbl}')
 
         if res:
             self.lst_box.delete(self.num_of_lbl)
@@ -588,7 +866,7 @@ class SourceManager(tk.Toplevel):
         links = [x for x in self.tbox.get("1.0", tk.END).split("\n") if bool(x) and not self.pat_wspace.match(x)]
 
         if not links:
-            messagebox.showerror(LANG.get("manage_links"), LANG.get("no_links_or_wrong"))
+            messagebox.showerror(master=self, title=LANG.get("manage_links"),  message=LANG.get("no_links_or_wrong"))
             return
 
         self.project = self.nametowidget(".").load_project()
@@ -601,7 +879,7 @@ class SourceManager(tk.Toplevel):
         self.nametowidget(".").project = self.project
         self.nametowidget(".").save_project()
 
-        messagebox.showinfo(LANG.get("manage_links"), f"{LANG.get('source_added')}{len(links)}")
+        messagebox.showinfo(master=self, title=LANG.get("manage_links"), message=f"{LANG.get('source_added')}{len(links)}")
 
         self.add_sources()
 
@@ -676,7 +954,7 @@ class SourceManager(tk.Toplevel):
             if i.get("source") == "":
                 self.tree_base.insert("", tk.END, values=(file_id, i.get("source"), i.get("path"), i.get("labels"),
                                                           dt.datetime.fromtimestamp(i.get("c_time")).strftime(
-                                                              "%Y-%m-%d %H-%M-%S ")))
+                                                              "%Y-%m-%d %H-%M-%S")))
 
         btn_show_all_links = ttk.Button(master=self.temp_bottom_pan, text=LANG.get("show_all_links"),
                                         command=self.show_all_links)
@@ -735,7 +1013,7 @@ class SourceManager(tk.Toplevel):
 
     def assign(self):
         if self.selected_source and self.selected_base:
-            res = messagebox.askyesno(LANG.get("assign_sources"), LANG.get("ask_assign"))
+            res = messagebox.askyesno(master=self, title=LANG.get("assign_sources"), message=LANG.get("ask_assign"))
 
             if res:
                 key_temp = self.selected_base[1]
@@ -748,7 +1026,7 @@ class SourceManager(tk.Toplevel):
                                                                    dt.datetime.fromtimestamp(
                                                                        self.copy_project_files[key_temp].get(
                                                                            "c_time")).strftime(
-                                                                       "%Y-%m-%d %H-%M-%S ")))
+                                                                       "%Y-%m-%d %H-%M-%S")))
 
                 self.changes_applied = True
                 self.selected_sources_to_delete.append(self.selected_source[1])
@@ -756,14 +1034,14 @@ class SourceManager(tk.Toplevel):
                 return
 
         else:
-            messagebox.showinfo(LANG.get("assign_sources"), LANG.get("mark_sources_and_img"))
+            messagebox.showinfo(master=self, title=LANG.get("assign_sources"), message=LANG.get("mark_sources_and_img"))
 
     def save_changes(self):
         if not self.changes_applied:
-            messagebox.showinfo(LANG.get("assign_sources"), LANG.get("no_changes_applied"))
+            messagebox.showinfo(master=self, title=LANG.get("assign_sources"), message=LANG.get("no_changes_applied"))
             return
 
-        res = messagebox.askyesno(LANG.get("assign_sources"), LANG.get("ask_save_changes"))
+        res = messagebox.askyesno(master=self, title=LANG.get("assign_sources"), message=LANG.get("ask_save_changes"))
         if res:
             self.project["files"] = self.copy_project_files
 
@@ -786,17 +1064,21 @@ class SourceManager(tk.Toplevel):
     def delete_source(self):
         # todo - czy jeśli wywalam a source jest przypisane to też wywalać? czy wywalać tylko nieprzypisane
         if not self.selected_source:
-            messagebox.showinfo(LANG.get("del_source"), LANG.get("no_source_sel"))
+            messagebox.showinfo(master=self, title=LANG.get("del_source"), message=LANG.get("no_source_sel"))
             return
 
         self.selected_sources_to_delete.append(self.selected_source[1])
         self.changes_applied = True
-        messagebox.showinfo(LANG.get("del_source"), LANG.get("save_to_confirm_del"))
+        messagebox.showinfo(master=self, title=LANG.get("del_source"), message=LANG.get("save_to_confirm_del"))
+
 
 class FieldsManager(tk.Toplevel):
     def __init__(self, driver, file_id, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.title(LANG.get("fields_manager"))
+
+        self.grab_set()
+
         self.m_frame = ttk.Frame(master=self)
         self.m_frame.grid()
 
@@ -830,7 +1112,7 @@ class FieldsManager(tk.Toplevel):
 
         ttk.Button(master=self.left_pan, text=LANG.get("add_field"), command=self.add_field).grid()
         ttk.Button(master=self.left_pan, text=LANG.get("edit_field"), command=self.edit_field).grid()
-        # ttk.Button(master=self.left_pan, text=LANG.get("del_field"), command=lambda x=project, y=file_id: del_field(x, y)).grid()
+        ttk.Button(master=self.left_pan, text=LANG.get("del_field"), command=self.del_field).grid()
         ttk.Button(master=self.left_pan, text=LANG.get("go_back"), command=self.destroy).grid()
 
     def add_field(self):
@@ -856,7 +1138,7 @@ class FieldsManager(tk.Toplevel):
             extra_fields = self.project["files"][self.file_id]["extra_fields"]
 
             if f_name in extra_fields:
-                messagebox.showerror(LANG.get("field_name_exists"), LANG.get("field_name_exists"))
+                messagebox.showerror(master=self, title=LANG.get("field_name_exists"), message=LANG.get("field_name_exists"))
                 return
 
             extra_fields[f_name] = self.field_val.get()
@@ -904,16 +1186,21 @@ class FieldsManager(tk.Toplevel):
 
     def accept_edit(self):
 
-        if not self.new_val_ent.get():
-            return
-
-        if self.new_val_ent.get() != self.f_edit_name:
+        if self.new_fname_ent.get() != self.f_edit_name and self.new_val_ent.get() != self.f_edit_val:
             self.project["files"][self.file_id]["extra_fields"][self.new_fname_ent.get()] = self.new_val_ent.get()
 
             del self.project["files"][self.file_id]["extra_fields"][self.f_edit_name]
 
             self.lst_box_fields.delete(self.f_index)
             self.lst_box_fields.insert(self.f_index, f"{self.new_fname_ent.get()} /// {self.new_val_ent.get()}")
+
+        elif self.new_fname_ent.get() != self.f_edit_name:
+            self.project["files"][self.file_id]["extra_fields"][self.new_fname_ent.get()] = self.f_edit_val
+
+            del self.project["files"][self.file_id]["extra_fields"][self.f_edit_name]
+
+            self.lst_box_fields.delete(self.f_index)
+            self.lst_box_fields.insert(self.f_index, f"{self.new_fname_ent.get()} /// {self.f_edit_val}")
 
         else:
             self.project["files"][self.file_id]["extra_fields"][self.f_edit_name] = self.new_val_ent.get()
@@ -934,7 +1221,31 @@ class FieldsManager(tk.Toplevel):
             c.destroy()
 
     def del_field(self):
-        ...
+        for c in self.right_pan.winfo_children():
+            c.destroy()
+
+        self.f_index = self.lst_box_fields.curselection()
+        if self.f_index:
+            res = messagebox.askyesno(master=self, title=LANG.get("fields_manager"), message=LANG.get("del_field"))
+            if res:
+                self.f_index = self.f_index[0]
+                self.f_del_name, _ = self.lst_box_fields.get(self.f_index).split(" /// ")
+
+                del self.project["files"][self.file_id]["extra_fields"][self.f_del_name]
+
+                self.nametowidget(".").project = self.project
+                self.nametowidget(".").save_project()
+
+                self.lst_box_fields.delete(self.f_index)
+
+                for c in self.driver.frame_extra.winfo_children():
+                    c.destroy()
+
+                for index, (field_name, field_val) in enumerate(self.extra_fields.items()):
+                    ExtraField(master=self.driver.frame_extra, field_name=field_name, field_val=field_val,
+                               file_id=self.file_id
+                               ).grid(row=index // 3, column=index % 3)
+
 
 class DetailPan(MyFrame):
     def __init__(self, driver, file_id, item_index, *args, **kwargs):
@@ -964,6 +1275,11 @@ class DetailPan(MyFrame):
         self.extra_fields = self.project["files"][self.file_id]["extra_fields"]
         self.c_time = self.project["files"][self.file_id]["c_time"]
         c_time = dt.datetime.fromtimestamp(self.c_time).strftime("%Y-%m-%d %H-%M-%S")
+        if self.project["files"][self.file_id].get("binds"):
+            self.binds = self.project["files"][self.file_id].get("binds")
+        else:
+            self.binds = []
+        # c_time = f"{self.c_time:%Y-%m-%d %H-%M-%S}"
 
         ttk.Label(master=self, text=LANG.get("id")).grid(row=0, column=0)
 
@@ -977,14 +1293,14 @@ class DetailPan(MyFrame):
         self.ent_name.insert(tk.END, self.f_name)
         self.ent_name.pack(side=tk.LEFT)
 
-        ttk.Button(master=self, text=LANG.get("f_rename"), command=self.rename_file).grid(row=0, column=2)  # todo command
+        ttk.Button(master=self, text=LANG.get("f_rename"), command=self.rename_file).grid(row=0, column=2)
 
         ttk.Label(master=self, text=LANG.get("source")).grid(row=1, column=0)
         self.ent_src = ttk.Entry(master=self, width=100)
         self.ent_src.insert(tk.END, self.source)
         self.ent_src.grid(row=1, column=1)
 
-        ttk.Button(master=self, text=LANG.get("s_rename"), command=self.rename_source).grid(row=1, column=2)  # todo command
+        ttk.Button(master=self, text=LANG.get("s_rename"), command=self.rename_source).grid(row=1, column=2)
 
         ttk.Label(master=self, text=LANG.get("path")).grid(row=2, column=0)
         path_broken = self.path
@@ -1039,6 +1355,8 @@ class DetailPan(MyFrame):
 
         self.fields_manager = None
 
+    # todo: add "open in new window option"
+
     def manage_fields(self):
         self.fields_manager = FieldsManager(driver=self, file_id=self.file_id)
 
@@ -1046,11 +1364,11 @@ class DetailPan(MyFrame):
         n_name = self.ent_name.get()
 
         if not n_name.endswith(pathlib.Path(self.path).suffix):
-            messagebox.showerror(LANG.get("f_rename"), LANG.get("f_name_wrong_suffix"))
+            messagebox.showerror(master=self, title=LANG.get("f_rename"), message=LANG.get("f_name_wrong_suffix"))
             return
 
         if n_name != self.f_name:
-            res = messagebox.askyesno(LANG.get("f_rename"), LANG.get("f_rename"))
+            res = messagebox.askyesno(master=self, title=LANG.get("f_rename"), message=LANG.get("f_rename"))
             if res:
                 old_path = pathlib.Path(self.path)
                 new_path = pathlib.Path(old_path.parent, n_name)
@@ -1072,7 +1390,8 @@ class DetailPan(MyFrame):
                     "labels": self.labels,
                     "comment": self.comment,
                     "extra_fields": self.extra_fields,
-                    "c_time": self.c_time
+                    "c_time": self.c_time,
+                    "binds": self.binds
                 }
 
                 del self.project["files"][self.file_id]
@@ -1093,16 +1412,16 @@ class DetailPan(MyFrame):
                          self.source,
                          self.path,
                          self.labels,
-                         self.c_time)
+                         dt.datetime.fromtimestamp(self.c_time).strftime("%Y-%m-%d %H-%M-%S"))
                     )
                 )
         else:
-            messagebox.showerror(LANG.get("f_rename"), LANG.get("same_f_name"))
+            messagebox.showerror(master=self, title=LANG.get("f_rename"), message=LANG.get("same_f_name"))
 
     def rename_source(self):
         src = self.ent_src.get()
         if src != self.source:
-            res = messagebox.askyesno(LANG.get("s_rename"), LANG.get("s_rename"))
+            res = messagebox.askyesno(master=self, title=LANG.get("s_rename"), message=LANG.get("s_rename"))
             if res:
                 self.project["files"][self.file_id]["source"] = src
                 self.source = src
@@ -1119,17 +1438,19 @@ class DetailPan(MyFrame):
                          self.source,
                          self.path,
                          self.labels,
-                         self.c_time)
+                         dt.datetime.fromtimestamp(self.c_time).strftime("%Y-%m-%d %H-%M-%S"))
                     )
                 )
 
         else:
-            messagebox.showerror(LANG.get("s_rename"), LANG.get("same_source"))
+            messagebox.showerror(master=self, title=LANG.get("s_rename"), message=LANG.get("same_source"))
 
     def manage_labels(self):
 
         self.lbl_manager = tk.Toplevel(master=self)
         self.lbl_manager.title(f"{LANG.get('label_man')}{self.file_id}")
+
+        self.lbl_manager.grab_set()
 
         self.frame_lbl = MyFrame(master=self.lbl_manager)
         self.frame_lbl.grid()
@@ -1214,7 +1535,7 @@ class DetailPan(MyFrame):
                  self.source,
                  self.path,
                  selected_labels,
-                 self.c_time)
+                 dt.datetime.fromtimestamp(self.c_time).strftime("%Y-%m-%d %H-%M-%S"))
             )
         )
 
@@ -1222,18 +1543,21 @@ class DetailPan(MyFrame):
         comment = self.tbox_com.get("1.0", tk.END)[:-1]
 
         if comment != self.comment:
-            res = messagebox.askyesno(LANG.get("alter_comment"), LANG.get("alter_comment"))
+            res = messagebox.askyesno(master=self, title=LANG.get("alter_comment"), message=LANG.get("alter_comment"))
             if res:
                 self.project["files"][self.file_id]["comment"] = comment
                 self.comment = comment
                 self.nametowidget(".").save_project()
         else:
-            messagebox.showerror(LANG.get("alter_comment"), LANG.get("same_comment"))
+            messagebox.showerror(master=self, title=LANG.get("alter_comment"), message=LANG.get("same_comment"))
 
 
 class ZoomPan(MyFrame):
-    def __init__(self, path, *args, **kwargs):
+    def __init__(self, path=None, *args, **kwargs):
         super(ZoomPan, self).__init__(*args, **kwargs)
+
+        if not path:
+            return
 
         self.path = path
 
@@ -1241,8 +1565,6 @@ class ZoomPan(MyFrame):
 
         self.zoom = ZoomAdvanced(master=self, path=pathlib.Path(self.path))
         self.zoom.grid(sticky=tk.NSEW)
-
-        print(self.nametowidget(self))
 
 
 class TreePan(MyFrame):
@@ -1290,7 +1612,7 @@ class TreePan(MyFrame):
         for file_id, i in self.project["files"].items():
             self.tree.insert("", tk.END, values=(file_id, i.get("source"), i.get("path"), i.get("labels"),
                                                  dt.datetime.fromtimestamp(i.get("c_time")).strftime(
-                                                     "%Y-%m-%d %H-%M-%S ")))
+                                                     "%Y-%m-%d %H-%M-%S")))
 
     def selecting_item(self, event):
         for child in self.driver.detail_pan.winfo_children():
