@@ -34,7 +34,9 @@ class MainWindow(tk.Tk):
         super().__init__(*args, *kwargs)
 
         self.title(LANG.get("title"))
-        self.geometry("400x300")
+        width = self.winfo_screenwidth()
+        height = self.winfo_screenheight()
+        self.geometry(f"{width}x{height}")
         self.columnconfigure(0, weight=1)
         self.rowconfigure(0, weight=1)
 

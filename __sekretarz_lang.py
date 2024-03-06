@@ -91,6 +91,16 @@ LANG_eng = {
     "fields_manager": "Fields Manager",
     "rename_field": "Rename Field",
     "change_val_field": "Change Field value",
-    "bind_manager": "Binding Manager"
+    "bind_manager": "Binding Manager",
+    "show_binds": "Show binds for selected file",
+    "bind_parent": "Bind as Parent to",
+    "bind_child": "Bind as Child to",
+    "bind_sibling": "Bind as Sibling to",
+    "unbind_parent_child": "Unbind as Parent/Child",
+    "unbind_sibling": "Unbind as Sibling",
+    "show_all_binds": "Show all binds",
+    "select_file_item": "Select File from center pan",
+    "no_binds": "No binds to show",
+    "select_files_to_bind": "Select Files from center pan and right pan"
 }
 LANG = LANG_eng

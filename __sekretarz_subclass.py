@@ -17,11 +17,18 @@ from __zoomed_canvas import ZoomAdvanced
 
 
 class MyFrame(ttk.Frame):
-    def __init__(self, driver=None, driver_frame=None, driver_attr=None, *args, **kwargs):
+    def __init__(self, driver=None,
+                 driver_frame=None,
+                 driver_attr=None,
+                 driver_var=None,
+                 driver_tree_binded=None,
+                 *args, **kwargs):
         super(MyFrame, self).__init__(*args, **kwargs)
         self.driver = driver
         self.driver_frame = driver_frame
         self.driver_attr = driver_attr
+        self.driver_var = driver_var
+        self.driver_tree_binded = driver_tree_binded
 
     def grid(self, *args, **kwargs):
         if kwargs.get("sticky"):
@@ -123,10 +130,8 @@ class NewProWindow(tk.Toplevel):
             "labels": [],
             "last_id": 0,
             "links": [],
-            "binds": {"vertical": [],
-                      "horizontal": {
-
-                      }}
+            "binds": {},
+            "last_id_binds": 0,
         }
 
         with open(pathlib.Path(path, "base.json"), mode="w") as file:
@@ -327,6 +332,9 @@ class BindingManager(tk.Toplevel):
         super().__init__(*args, **kwargs)
 
         self.title(LANG.get("bind_manager"))
+        width = self.winfo_screenwidth()
+        height = self.winfo_screenheight()
+        self.geometry(f"{width}x{height}")
         self.grab_set()
         self.columnconfigure(0, weight=1)
         self.rowconfigure(0, weight=1)
@@ -337,10 +345,10 @@ class BindingManager(tk.Toplevel):
         self.bind_frame.columnconfigure((0, 1, 2), weight=1)
         self.bind_frame.rowconfigure((0, 1), weight=1)
 
-        style_1 = ttk.Style()
-        style_1.configure("_1.TFrame", background="black")
-
-        style_1.configure("_2.TFrame", background="yellow")
+        # style_1 = ttk.Style()
+        # style_1.configure("_1.TFrame", background="black")
+        #
+        # style_1.configure("_2.TFrame", background="yellow")
 
         self.zoom_frame_0 = MyFrame(master=self.bind_frame)
         self.zoom_frame_0.grid(column=0, row=0)
@@ -363,8 +371,10 @@ class BindingManager(tk.Toplevel):
         self.tree_binded = TreeBinded(master=self.bind_frame, driver_frame=self.zoom_frame_0, driver_attr=self.zoom_view_0)
         self.tree_binded.grid(column=0, row=1)
         # self.tree_binded.populate()
+        self.file_selected = [None]
+        self.file_to_bind = [None]
 
-        self.bottom_pan = MyFrame(master=self.bind_frame, style="_2.TFrame")
+        self.bottom_pan = MyFrame(master=self.bind_frame)
         self.bottom_pan.grid(column=1, row=1, columnspan=2)
         self.bottom_pan.columnconfigure((0, 1, 2), weight=1)
         self.bottom_pan.rowconfigure(0, weight=1)
@@ -382,21 +392,70 @@ class BindingManager(tk.Toplevel):
         self.bottom_pan_right.columnconfigure(0, weight=1)
         self.bottom_pan_right.rowconfigure(0, weight=1)
 
-        self.tree_choice = TreeChoiceOrToBind(master=self.bottom_pan_left, driver_frame=self.zoom_frame_1, driver_attr=self.zoom_view_1)
+        self.tree_choice = TreeChoiceOrToBind(master=self.bottom_pan_left,
+                                              driver_frame=self.zoom_frame_1,
+                                              driver_attr=self.zoom_view_1,
+                                              driver_var=self.file_selected,
+                                              driver_tree_binded=self.tree_binded)
         self.tree_choice.grid()
         self.tree_choice.populate()
 
-        ttk.Button(master=self.bottom_pan_centre).grid()
-        ttk.Button(master=self.bottom_pan_centre).grid()
-        ttk.Button(master=self.bottom_pan_centre).grid()
-        ttk.Button(master=self.bottom_pan_centre).grid()
-        ttk.Button(master=self.bottom_pan_centre).grid()
-        ttk.Button(master=self.bottom_pan_centre).grid()
+        ttk.Button(master=self.bottom_pan_centre, text=LANG.get("show_binds"), command=self.show_binds).grid()
+        ttk.Button(master=self.bottom_pan_centre, text=LANG.get("bind_parent"), command=self.bind_parent).grid()
+        ttk.Button(master=self.bottom_pan_centre, text=LANG.get("bind_child"), command=self.bind_child).grid()
+        ttk.Button(master=self.bottom_pan_centre, text=LANG.get("bind_sibling"), command=self.bind_sibling).grid()
+        ttk.Button(master=self.bottom_pan_centre, text=LANG.get("unbind_parent_child"), command=self.unbind_parent_child).grid()
+        ttk.Button(master=self.bottom_pan_centre, text=LANG.get("unbind_sibling"), command=self.unbind_parent_child).grid()
+        ttk.Button(master=self.bottom_pan_centre, text=LANG.get("show_all_binds"), command=self.show_all_binds).grid()
         ttk.Button(master=self.bottom_pan_centre, text=LANG.get("go_back"), command=self.destroy).grid()
 
-        self.tree_to_bind = TreeChoiceOrToBind(master=self.bottom_pan_right, driver_frame=self.zoom_frame_2, driver_attr=self.zoom_view_2)
+        self.tree_to_bind = TreeChoiceOrToBind(master=self.bottom_pan_right,
+                                               driver_frame=self.zoom_frame_2,
+                                               driver_attr=self.zoom_view_2,
+                                               driver_var=self.file_to_bind,
+                                               driver_tree_binded=self.tree_binded)
         self.tree_to_bind.grid()
         self.tree_to_bind.populate()
+
+        self.project = None
+
+    def show_binds(self):
+        if self.file_selected[0]:
+            self.tree_binded.show_binds(file_id=self.file_selected[0])
+        else:
+            messagebox.showinfo(master=self, title=LANG.get("bind_manager"), message=LANG.get("select_file_item"))
+
+    def bind_parent(self):
+
+        print(self.file_selected)
+        print(self.file_to_bind)
+        file_selected = self.file_selected[0]
+        file_to_bind = self.file_to_bind[0]
+
+        if file_selected and file_to_bind:
+            self.project = self.nametowidget(".").load_project()
+
+            self.project["last_id_binds"] += 1
+            bind_num = self.project["last_id_binds"]
+
+            self.project["binds"][bind_num] = {"vertical": (file_selected, file_to_bind)}
+
+            self.project["files"][file_selected]["binds"].append(bind_num)
+            self.project["files"][file_to_bind]["binds"].append(bind_num)
+
+
+            self.nametowidget(".").project = self.project
+            self.nametowidget(".").save_project()
+        else:
+             messagebox.showinfo(master=self, title=LANG.get("bind_manager"), message=LANG.get("select_files_to_bind"))
+    def bind_child(self):
+        ...
+    def bind_sibling(self):
+        ...
+    def unbind_parent_child(self):
+        ...
+    def show_all_binds(self):
+        ...
 
 
 class TreeBinded(MyFrame):
@@ -410,14 +469,13 @@ class TreeBinded(MyFrame):
         self.columnconfigure(0, weight=1)
         self.columnconfigure(1, weight=0)
 
-        self.tree = ttk.Treeview(master=self, show="headings")
+        self.tree = ttk.Treeview(master=self, show="tree")
+        # self.tree = ttk.Treeview(master=self, show="headings")
 
-        columns = ("id", "source", "labels")
-        self.tree.configure(columns=columns)
+        # columns = ("id", )
+        # self.tree.configure(columns=columns)
 
-        self.tree.heading("id", text=LANG.get("id"))
-        self.tree.heading("source", text=LANG.get("source"))
-        self.tree.heading("labels", text=LANG.get("labels"))
+        # self.tree.heading("id", text=LANG.get("id"))
 
         self.tree.grid(row=0, column=0, sticky=tk.NSEW)
 
@@ -433,16 +491,51 @@ class TreeBinded(MyFrame):
 
         self.project = self.nametowidget(".").project
 
-    def update_binds(self, file_id):
+    def show_binds(self, file_id):
+        for item in self.tree.get_children():
+            self.tree.delete(item)
+
         self.project = self.nametowidget(".").load_project()
         binds = self.project["files"][file_id].get("binds")
         if binds:
-            curr_binds = []
+            binds_vertical = []
+            binds_horizontal = []
             for bind in binds:
-                curr_binds.append(self.project["binds"].get(bind))
+                b = self.project["binds"][str(bind)].get("vertical")
+                if b:
+                    binds_vertical.append(b)
+                else:
+                    binds_horizontal.append(self.project["binds"][str(bind)].get("horizontal"))
 
-            for c_bind in curr_binds:
-                ...
+            print(binds_vertical)
+            print(binds_horizontal)
+
+            iid_num = 0
+            for bind in binds_vertical:
+                # tutaj spierdolone - trzeba inaczej zrobić: przemodelować cały Binding Manager
+                # w ten sposób, że po lewej jest TreeBinded po prawej panel z listą
+                # zaznaczam na liście obiekt i do niego akcje:
+                # utowórz root
+                # add to selected root as parent or child
+                # unbind item selected in TreeBinded etc
+
+                ## coś tam działa
+                print(bind)
+                self.tree.insert("", tk.END, iid=str(iid_num), text=bind[0])
+                _iid_num = iid_num + 1
+                self.tree.insert(str(iid_num), tk.END, iid=str(_iid_num), text=bind[1])
+                iid_num += 2
+                # try:
+                #     self.tree.insert("",tk.END, iid=, text=bind[0])
+                # except tk.TclError:
+                #     pass
+
+                # try:
+                #     self.tree.insert(bind[0],tk.END, text=bind[1])
+                # except tk.TclError:
+                #     pass
+        else:
+            messagebox.showinfo(master=self, title=LANG.get("bind_manager"), message=LANG.get("no_binds"))
 
     def selecting_item(self, event):
         try:
@@ -455,12 +548,12 @@ class TreeBinded(MyFrame):
 
         item_index = self.tree.focus()
         item_obj = self.tree.item(item_index)
-        item_vals = item_obj.get("values")
+        item_vals = item_obj.get("text")
 
         try:
-            file_id = item_vals[0]
+            file_id = item_vals
             path_to_screen = self.project["files"][file_id]["path"]
-        except IndexError:
+        except KeyError:
             return
 
         try:
@@ -538,8 +631,8 @@ class TreeChoiceOrToBind(MyFrame):
 
         try:
             self.driver_attr = ZoomPan(master=self.driver_frame, path=path_to_screen)
-
-            self.master.tree_binded.update_binds()
+            self.driver_var[0] = file_id
+            print(self.driver_var)
 
             gc.disable()
             gc.collect()
