@@ -53,6 +53,8 @@ LANG_eng = {
     "extra_fields": "Extra Fields",
     "alter_comment": "Alter Comment",
     "del_file": "Delete File",
+    "del_file_confirm": "Are you sure you want delete this File (this operation is irreversible and affects binds): ",
+    "binds_affected": "Binds affected: ",
     "manage_fields": "Manage Fields",
     "input_new_label": "Input new Label:",
     "add_label": "Add Label",
@@ -101,6 +103,11 @@ LANG_eng = {
     "show_all_binds": "Show all binds",
     "select_file_item": "Select File from center pan",
     "no_binds": "No binds to show",
-    "select_files_to_bind": "Select Files from center pan and right pan"
+    "select_files_to_bind": "Select Files from center pan and right pan",
+    "or_include": "'OR' operator between Labels to include",
+    "and_include": "'AND' operator between Labels to include",
+    "or_exclude": "'OR' operator between Labels to exclude",
+    "and_exclude": "'AND' operator between Labels to exclude",
+    "dist_manager": "Distribute Label Manager"
 }
 LANG = LANG_eng
