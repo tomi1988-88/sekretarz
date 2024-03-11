@@ -1,32 +1,14 @@
-import copy
 import tkinter as tk
 import os
 import re
 import pathlib
-import time
-import shutil
 import json
-import datetime as dt
 from tkinter import ttk
-from tkinter import filedialog, scrolledtext, messagebox
-from __zoomed_canvas import ZoomAdvanced
+from tkinter import filedialog, messagebox
 from __sekretarz_lang import LANG
 from __sekretarz_subclass import (NewProWindow,
-                                  BaseProjectView, MyFrame)
-
-# files = {"id": "", "source": "link/app/whatever", "f_name": "nazwa pliku", "path": "file location", "labels": [], "comment": "", "extra_fields": {}, "c_time": ""}
-#
-# files_ = {"id + f_name": {"id": "", "source": "link/app/whatever", "f_name": "nazwa pliku", "path": "file location", "labels": [], "comment": "", "extra_fields": {}, "c_time": ""}}
-#
-#
-base_proj = {
-    "name": "",
-    "main_dir": "",
-    "files": {},
-    "labels": [],
-    "last_id": 0,
-    "links": []
-    }
+                                  BaseProjectView,
+                                  MyFrame)
 
 
 class MainWindow(tk.Tk):
