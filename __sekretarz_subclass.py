@@ -15,6 +15,7 @@ from tkinter import (ttk,
                      scrolledtext)
 from __sekretarz_lang import LANG
 from __zoomed_canvas import ZoomAdvanced
+from openpyxl import Workbook
 
 
 class MyFrame(ttk.Frame):
@@ -133,6 +134,7 @@ class NewProWindow(tk.Toplevel):
             "links": [],
             "binds": {},
             "last_id_binds": 0,
+            "dist_schemas": {}
         }
 
         with open(pathlib.Path(path, "base.json"), mode="w") as file:
@@ -140,7 +142,7 @@ class NewProWindow(tk.Toplevel):
 
         self.master.project = base_proj
         self.master.base_project_view()
-        self.destroy()  # może będzie trzeba przesunąć do MainWindow.base_pro_view()
+        self.destroy()
 
 
 class BaseProjectView(MyFrame):
@@ -171,16 +173,16 @@ class BaseProjectView(MyFrame):
         ttk.Button(master=self.menu_bar, text=LANG.get("manage_links"),
                    command=self.source_manager).pack(side=tk.LEFT, padx=5, pady=2)
 
-        # ttk.Button(master=self.menu_bar, text=LANG.get("list_files"), command=self.list_files).pack(side=tk.LEFT)
+        # ttk.Button(master=self.menu_bar, text=LANG.get("list_files"), command=self.list_files).pack(side=tk.LEFT) #todo
         #
         ttk.Button(master=self.menu_bar, text=LANG.get("labels"), command=self.label_manager).pack(side=tk.LEFT)
         #
-        # ttk.Button(master=self.menu_bar, text=LANG.get("del_pro"), ).pack(side=tk.LEFT)
+        # ttk.Button(master=self.menu_bar, text=LANG.get("del_pro"), ).pack(side=tk.LEFT) #todo
         #
         ttk.Button(master=self.menu_bar, text=LANG.get("filter_labels"),
                    command=self.filter_manager).pack(side=tk.LEFT)
-        ttk.Button(master=self.menu_bar, text=LANG.get("bind_manager"),
-                   command=self.binding_manager).pack(side=tk.LEFT)
+        # ttk.Button(master=self.menu_bar, text=LANG.get("bind_manager"), #todo
+        #            command=self.binding_manager).pack(side=tk.LEFT)
         ttk.Button(master=self.menu_bar, text=LANG.get("dist_manager"),
                    command=self.distribute_labels_to_dirs).pack(side=tk.LEFT)
 
@@ -257,7 +259,6 @@ class BaseProjectView(MyFrame):
                     "extra_fields": {},
                     "c_time": path.stat().st_mtime,
                     "binds": [],
-                    "dist_schemas": {}
                 }
 
         files_added = pro_counter - self.project["last_id"]
@@ -294,14 +295,13 @@ class BaseProjectView(MyFrame):
 
     def distribute_labels_to_dirs(self):
         self.dist_manager = DistManager()
-        ...
 
     def manage_all_fields(self):
         # todo
         ...
 
     def binding_manager(self):
-        self.bin_manager = BindingManager()
+        # self.bin_manager = BindingManager()
         # todo
         # relacje: vertical (parent, child,) horizontal (sibling)
         # add "binds" to the project
@@ -364,8 +364,8 @@ class DistManager(tk.Toplevel):
         self.upper_pan = MyFrame(master=self.dist_frame)
         self.upper_pan.grid(row=0, column=0)
 
-        ttk.Button(master=self.upper_pan, text="Load Schema").grid() #todo
-        ttk.Button(master=self.upper_pan, text="Save Schema").grid() # todo
+        ttk.Button(master=self.upper_pan, text="Load Schema", command=self.load_schema).grid()
+        ttk.Button(master=self.upper_pan, text="Save Schema", command=self.save_schema).grid()
 
         ttk.Label(master=self.dist_frame, text="Select Labels").grid(row=1, column=0)
         ttk.Label(master=self.dist_frame, text="Combined Labels").grid(row=1, column=1)
@@ -406,14 +406,15 @@ class DistManager(tk.Toplevel):
         self.bottom_left.rowconfigure((0,1,2), weight=0)
         self.bottom_left.columnconfigure(0, weight=1)
         ttk.Label(master=self.bottom_left, text="Select Label(s) and push them to Combined Labels").grid()
-        ttk.Button(master=self.bottom_left, text="Push selected Labels", command=self.push_selected_labels).grid() #todo
+        ttk.Button(master=self.bottom_left, text="Push selected Labels", command=self.push_selected_label).grid() #todo
 
         self.bottom_center = MyFrame(master=self.dist_frame)
         self.bottom_center.grid(row=3, column=1)
-        self.bottom_center.rowconfigure((0,1,2), weight=0)
+        self.bottom_center.rowconfigure((0,1,2,3), weight=0)
         self.bottom_center.columnconfigure(0, weight=1)
         ttk.Label(master=self.bottom_center, text="Check if combination is ok and push them to Folders").grid()
-        ttk.Button(master=self.bottom_center, text="Push combined Labels", command=self.push_combined_labels).grid() #todo
+        ttk.Button(master=self.bottom_center, text="Push all combined Labels to Folders", command=self.push_all_combined_labels).grid()
+        ttk.Button(master=self.bottom_center, text="Push combined Label to Folders", command=self.push_combined_label).grid()
         ttk.Button(master=self.bottom_center, text="Delete combination", command=self.del_combined).grid()
 
         self.bottom_right = MyFrame(master=self.dist_frame)
@@ -422,14 +423,20 @@ class DistManager(tk.Toplevel):
         self.bottom_right.columnconfigure(0, weight=1)
         ttk.Label(master=self.bottom_right, text="Rename Folders or keep default names. If all folders are ready start Distribution").grid()
         ttk.Button(master=self.bottom_right, text="Rename Folder", command=self.rename_folder).grid()
-        ttk.Button(master=self.bottom_right, text="Prepare Distribution", command=self.prep_distribution).grid() #todo
+        ttk.Button(master=self.bottom_right, text="Prepare Distribution", command=self.prep_distribution).grid()
         ttk.Button(master=self.bottom_right, text="Delete folder", command=self.del_folder).grid()
 
-        # self.combined_labels = {}
-        self.folders_and_combinations = {}
+        self.folders_and_combinations = dict()
 
         self.new_folder_name = None
         self.distributor = None
+        self.save_load = None
+
+    def save_schema(self):
+        self.save_load = SaveLoadSchema(master=self, save=True)
+
+    def load_schema(self):
+        self.save_load = SaveLoadSchema(master=self, save=False)
 
     def prep_distribution(self):
         if self.folders_and_combinations:
@@ -454,15 +461,26 @@ class DistManager(tk.Toplevel):
                 self.folders_lst.delete(item_id)
                 self.folders_lst.insert(item_id, self.new_folder_name)
 
-    def push_selected_labels(self):
+    def push_all_combined_labels(self):
+        all_comb_labels = self.combined_lst.get(0, tk.END)
+        for comb_label in all_comb_labels:
+            key_folder = comb_label
+
+            if key_folder in self.folders_and_combinations:
+                return
+
+            self.folders_and_combinations[key_folder] = key_folder
+            self.folders_lst.insert(tk.END, key_folder)
+
+    def push_selected_label(self):
         selected = self.label_lst.curselection()
         if selected:
             selected = [self.label_lst.get(i) for i in selected]
-            selected = " /// ".join(selected)
+            selected = " ___ ".join(selected)
 
             self.combined_lst.insert(tk.END, selected)
 
-    def push_combined_labels(self):
+    def push_combined_label(self):
         selected = self.combined_lst.curselection()
         if selected:
             key_folder = self.combined_lst.get(selected[0])
@@ -499,6 +517,102 @@ class DistManager(tk.Toplevel):
             self.folders_lst.delete(selected[0])
 
 
+class SaveLoadSchema(tk.Toplevel):
+    def __init__(self, save=None, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.grab_set()
+        self.save = save
+        if self.save:
+            self.title("Save Schema")
+        else:
+            self.title("Load Schema")
+
+        self.columnconfigure(0, weight=1)
+        self.rowconfigure(0, weight=1)
+
+        self.pan = MyFrame(master=self)
+        self.pan.grid()
+        self.pan.columnconfigure(0, weight=1)
+        self.pan.rowconfigure(0, weight=1)
+        self.pan.rowconfigure((1, 2, 3, 4, 5), weight=0)
+
+        self.lst_box = tk.Listbox(master=self.pan)
+        self.lst_box.grid(row=0, column=0)
+
+        self.project = self.nametowidget(".").load_project()
+
+        if "dist_schemas" in self.project:
+            self.schemas = self.project["dist_schemas"]
+        else:
+            self.project["dist_schemas"] = dict()
+            self.schemas = self.project["dist_schemas"]
+
+        for schema in self.schemas:
+            self.lst_box.insert(tk.END, schema)
+
+        if self.save:
+
+            ttk.Label(master=self.pan, text="Schema name:").grid(row=1, column=0)
+            self.ent_schema_name = ttk.Entry(self.pan)
+            self.ent_schema_name.grid(row=2, column=0)
+
+            ttk.Button(master=self.pan, text="Save", command=self.save_schema).grid(row=3, column=0)
+        else:
+            ttk.Label(master=self.pan, text="Load Schema").grid(row=1, column=0)
+            ttk.Button(master=self.pan, text="Load", command=self.load_schema).grid(row=2, column=0)
+
+        ttk.Button(master=self.pan, text="Delete", command=self.del_schema).grid(row=4, column=0)
+        ttk.Button(master=self.pan, text=LANG.get("go_back"), command=self.destroy).grid(row=5, column=0)
+
+    def save_schema(self):
+        schema_name = self.ent_schema_name.get()
+        if schema_name:
+            if schema_name in self.schemas:
+                messagebox.showinfo(marter=self, title="Unable to save", message="Schema with this name already exists")
+            else:
+                labels_to_save = self.master.label_lst.get(0, tk.END)
+                labels_combined_to_save = self.master.combined_lst.get(0, tk.END)
+                folders_and_combinations_to_save = self.master.folders_and_combinations
+
+                self.project["dist_schemas"][schema_name] = {
+                    "labels": labels_to_save,
+                    "labels_combined": labels_combined_to_save,
+                    "folders_and_combinations": folders_and_combinations_to_save
+                }
+
+                self.schemas = self.project["dist_schemas"]
+                self.nametowidget(".").save_project()
+                self.lst_box.insert(tk.END, schema_name)
+
+    def load_schema(self):
+        selected = self.lst_box.curselection()
+        if selected:
+            schema = self.lst_box.get(selected[0])
+
+            labels_to_load = self.schemas[schema]["labels"]
+            labels_combined_to_load = self.schemas[schema]["labels_combined"]
+            folders_and_combinations_to_load = self.schemas[schema]["folders_and_combinations"]
+
+            self.master.label_lst.delete(0, tk.END)
+            self.master.label_lst.insert(tk.END, *labels_to_load)
+
+            self.master.combined_lst.delete(0, tk.END)
+            self.master.combined_lst.insert(tk.END, *labels_combined_to_load)
+
+            self.master.folders_and_combinations = folders_and_combinations_to_load
+
+            self.master.folders_lst.delete(0, tk.END)
+            self.master.folders_lst.insert(0, *self.master.folders_and_combinations.keys())
+
+    def del_schema(self):
+        selected = self.lst_box.curselection()
+        if selected:
+            schema = self.lst_box.get(selected[0])
+            del self.schemas[schema]
+            self.nametowidget(".").save_project()
+            self.lst_box.delete(selected[0])
+
+
 class Distributor(tk.Toplevel):
     def __init__(self, folders_and_combinations=None, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -520,8 +634,32 @@ class Distributor(tk.Toplevel):
         self.upper_pan = MyFrame(master=self.dstr_frame)
         self.upper_pan.grid(row=0, column=0, columnspan=1)
 
+        self.upper_pan.columnconfigure((0,1,2,3), weight=0)
+        self.upper_pan.rowconfigure(0)
+
+        ttk.Button(master=self.upper_pan, text=LANG.get("go_back"), command=self.destroy).grid(row=0, column=0)
+        ttk.Button(master=self.upper_pan, text="Create Files list", command=self.create_files_list).grid(row=0, column=1) # todo
+        ttk.Button(master=self.upper_pan, text="Create Folders and Files list", command=self.create_folders_with_files_list).grid(row=0, column=2) # todo
+
+        self.zoom_pan = MyFrame(master=self.dstr_frame)
+        self.zoom_pan.grid(row=1, column=0)
+        self.zoom_pan.columnconfigure(0, weight=1)
+        self.zoom_pan.rowconfigure(0, weight=1)
+
+        self.zoom_view = None
+
+        self.detail_pan = MyFrame(master=self.dstr_frame)
+        self.detail_pan = MyFrame(master=self.dstr_frame)
+        self.detail_pan.grid(row=1, column=1)
+        self.detail_pan.columnconfigure(0, weight=1)
+        self.detail_pan.rowconfigure(0, weight=1)
+
+        self.detail_view = None
+        self.files_creator = None
+
+
         self.tree_pan = MyFrame(master=self.dstr_frame)
-        self.tree_pan.grid(row=1, column=0)
+        self.tree_pan.grid(row=2, column=0, columnspan=2)
 
         self.tree_pan.rowconfigure(0, weight=1)
         self.tree_pan.rowconfigure(1, weight=0)
@@ -539,7 +677,7 @@ class Distributor(tk.Toplevel):
         scroll_x.grid(row=1, column=0, sticky=tk.EW)
         self.tree.configure(xscrollcommand=scroll_x.set)
 
-        # self.tree.bind('<<TreeviewSelect>>', self.selecting_item)
+        self.tree.bind('<<TreeviewSelect>>', self.selecting_item)
 
         columns = ("id", "source", "path", "labels", "c_time")
         self.tree.configure(columns=columns)
@@ -550,15 +688,177 @@ class Distributor(tk.Toplevel):
         self.tree.heading("labels", text=LANG.get("labels"))
         self.tree.heading("c_time", text=LANG.get("c_time"))
 
+        self.project = self.nametowidget(".").load_project()
+
         self.populate_with_folders()
 
-    def populate_with_folders(self):
-        # key = folder name
-        # val = labels
+    def create_folders_with_files_list(self):
+        d_path = filedialog.askdirectory(master=self, initialdir=os.getcwd(), title="Create folder")
 
-        # roots = [f"{folder} $ {labels}" for folder, labels in self.folders_and_combinations]
-        # print(roots)
+        if not d_path:
+            return
+
+        d_path = pathlib.Path(d_path)
+        if not d_path.exists():
+            d_path.mkdir()
+
+        raport_path = filedialog.asksaveasfilename(master=self, initialdir=d_path, title="Create Raport file - xlsx extension is fixed", defaultextension='.xlsx')
+
+        if not raport_path:
+            return
+
+        wb = Workbook()
+
+        ws = wb.active
+        ws.title = f"Raport for {self.project['name']}"
+
+        row = 1
+        col = 1
+
+        for folder, labels in self.folders_and_combinations.items():
+            folder_path = d_path.joinpath(folder)
+            folder_path.mkdir()
+
+            ws.cell(row=row, column=col, value="Folder name")
+            ws.cell(row=row, column=col + 1, value=folder)
+            ws.cell(row=row, column=col + 2, value="Labels")
+            ws.cell(row=row, column=col + 3, value=labels)
+
+            row += 1
+
+            ws.cell(row=row, column=col, value="File name")
+            ws.cell(row=row, column=col + 1, value="Source")
+            ws.cell(row=row, column=col + 2, value="Old Path")
+            ws.cell(row=row, column=col + 3, value="New Path")
+            ws.cell(row=row, column=col + 4, value="New Path Short")
+            ws.cell(row=row, column=col + 5, value="Labels")
+            ws.cell(row=row, column=col + 6, value="Creation time")
+
+            row += 1
+
+            labels = labels.split(" ___ ")
+            unique_ids = set()
+
+            for label in labels:
+                for file_id, i in self.project["files"].items():
+                    if label in i["labels"] and file_id not in unique_ids:
+                        unique_ids.add(file_id)
+
+                        old_path = i.get("path")
+                        new_path = folder_path.joinpath(file_id)
+
+                        new_path_short = f"{new_path.parent.parent.name}\\{new_path.parent.name}\\{new_path.name}"
+
+                        new_path = str(new_path)
+
+                        shutil.copy2(old_path, new_path)
+
+                        ws.cell(row=row, column=col, value=file_id)
+                        ws.cell(row=row, column=col + 1, value=i.get("source"))
+                        ws.cell(row=row, column=col + 2, value=old_path)
+                        ws.cell(row=row, column=col + 3, value=new_path)
+                        ws.cell(row=row, column=col + 4, value=new_path_short)
+                        ws.cell(row=row, column=col + 5, value=" ___ ".join(i.get("labels")))
+                        ws.cell(row=row, column=col + 6, value=dt.datetime.fromtimestamp(i.get("c_time")).strftime(
+                                                                 "%Y-%m-%d %H:%M:%S"))
+                        row += 1
+            row += 1
+
+        wb.save(raport_path)
+
+        messagebox.showinfo(master=self, title="", message="Files and Raport saved!")
+
+    def create_files_list(self):
+        raport_path = filedialog.asksaveasfilename(master=self, initialdir=os.getcwd(), title="Save as", defaultextension='.xlsx')
+
+        if not raport_path:
+            return
+
+        wb = Workbook()
+
+        ws = wb.active
+        ws.title = f"Raport for {self.project['name']}"
+
+        row = 1
+        col = 1
+
+        for folder, labels in self.folders_and_combinations.items():
+            # root = f"{folder} $ {labels}"
+            # root_num = id_num
+            ws.cell(row=row, column=col, value="Folder name")
+            ws.cell(row=row, column=col + 1, value=folder)
+            ws.cell(row=row, column=col + 2, value="Labels")
+            ws.cell(row=row, column=col + 3, value=labels)
+
+            row += 1
+
+            ws.cell(row=row, column=col, value="File name")
+            ws.cell(row=row, column=col + 1, value="Source")
+            ws.cell(row=row, column=col + 2, value="Path")
+            ws.cell(row=row, column=col + 3, value="Labels")
+            ws.cell(row=row, column=col + 4, value="Creation time")
+
+            row += 1
+
+            labels = labels.split(" ___ ")
+            unique_ids = set()
+
+            for label in labels:
+                for file_id, i in self.project["files"].items():
+                    if label in i["labels"] and file_id not in unique_ids:
+                        unique_ids.add(file_id)
+                        ws.cell(row=row, column=col, value=file_id)
+                        ws.cell(row=row, column=col + 1, value=i.get("source"))
+                        ws.cell(row=row, column=col + 2, value=i.get("path"))
+                        ws.cell(row=row, column=col + 3, value=" ___ ".join(i.get("labels")))
+                        ws.cell(row=row, column=col + 4, value=dt.datetime.fromtimestamp(i.get("c_time")).strftime(
+                                                                 "%Y-%m-%d %H:%M:%S"))
+                        row += 1
+            row += 1
+
+        wb.save(raport_path)
+
+        messagebox.showinfo(master=self, title="", message="Raport saved!")
+
+    def selecting_item(self, event):
+        for child in self.detail_pan.winfo_children():
+            child.destroy()
+
+        for child in self.zoom_pan.winfo_children():
+            child.destroy()
+
+        item_index = self.tree.focus()
+        item_obj = self.tree.item(item_index)
+        item_vals = item_obj.get("values")
+
+        try:
+            # file_id = item_vals[0]
+            path_to_screen = item_vals[2]
+        except IndexError:
+            return
+
+        try:
+            # self.detail_view = DetailPan(master=self.detail_pan, driver=self,
+            #                                     item_index=item_index, file_id=file_id)
+
+            # comment = self.project["files"][file_id]["comment"]
+
+            self.zoom_view = ZoomPan(master=self.zoom_pan, path=path_to_screen)
+
+            gc.disable()
+            gc.collect()
+            gc.enable()
+
+        except tk.TclError:
+            return
+        except KeyError:
+            return
+
+    def populate_with_folders(self):
+
         id_num = 0
+        project = self.nametowidget(".").load_project()
+
         for folder, labels in self.folders_and_combinations.items():
             root = f"{folder} $ {labels}"
             root_num = id_num
@@ -567,16 +867,16 @@ class Distributor(tk.Toplevel):
 
             id_num += 1
 
-            labels = labels.split(" /// ")
+            labels = labels.split(" ___ ")
 
-            project = self.nametowidget(".").load_project()
-
+            unique_ids = set()
             for label in labels:
                 for file_id, i in project["files"].items():
-                    if label in i["labels"]:
+                    if label in i["labels"] and file_id not in unique_ids:
+                        unique_ids.add(file_id)
                         self.tree.insert(str(root_num), tk.END, values=(file_id, i.get("source"), i.get("path"), i.get("labels"),
                                                              dt.datetime.fromtimestamp(i.get("c_time")).strftime(
-                                                                 "%Y-%m-%d %H-%M-%S")))
+                                                                 "%Y-%m-%d %H:%M:%S")))
 
 
 class BindingManager(tk.Toplevel):
@@ -1012,7 +1312,7 @@ class FilterManager(tk.Toplevel):
             i = self.project["files"][file_id]
             tree_pan.tree.insert("", tk.END, values=(file_id, i.get("source"), i.get("path"), i.get("labels"),
                                                                  dt.datetime.fromtimestamp(i.get("c_time")).strftime(
-                                                                     "%Y-%m-%d %H-%M-%S")))
+                                                                     "%Y-%m-%d %H:%M:%S")))
 
         gc.disable()
         gc.collect()
@@ -1332,7 +1632,7 @@ class SourceManager(tk.Toplevel):
             if i.get("source") == "":
                 self.tree_base.insert("", tk.END, values=(file_id, i.get("source"), i.get("path"), i.get("labels"),
                                                           dt.datetime.fromtimestamp(i.get("c_time")).strftime(
-                                                              "%Y-%m-%d %H-%M-%S")))
+                                                              "%Y-%m-%d %H:%M:%S")))
 
         btn_show_all_links = ttk.Button(master=self.temp_bottom_pan, text=LANG.get("show_all_links"),
                                         command=self.show_all_links)
@@ -1404,7 +1704,7 @@ class SourceManager(tk.Toplevel):
                                                                    dt.datetime.fromtimestamp(
                                                                        self.copy_project_files[key_temp].get(
                                                                            "c_time")).strftime(
-                                                                       "%Y-%m-%d %H-%M-%S")))
+                                                                       "%Y-%m-%d %H:%M:%S")))
 
                 self.changes_applied = True
                 self.selected_sources_to_delete.append(self.selected_source[1])
@@ -1486,7 +1786,7 @@ class FieldsManager(tk.Toplevel):
         self.driver = driver
 
         for f, val in self.extra_fields.items():
-            self.lst_box_fields.insert(tk.END, f"{f} /// {val}")
+            self.lst_box_fields.insert(tk.END, f"{f} ___ {val}")
 
         ttk.Button(master=self.left_pan, text=LANG.get("add_field"), command=self.add_field).grid()
         ttk.Button(master=self.left_pan, text=LANG.get("edit_field"), command=self.edit_field).grid()
@@ -1524,7 +1824,7 @@ class FieldsManager(tk.Toplevel):
             self.nametowidget(".").project = self.project
             self.nametowidget(".").save_project()
 
-            self.lst_box_fields.insert(tk.END, f"{f_name} /// {self.field_val.get()}")
+            self.lst_box_fields.insert(tk.END, f"{f_name} ___ {self.field_val.get()}")
 
             for c in self.driver.frame_extra.winfo_children():
                 c.destroy()
@@ -1546,7 +1846,7 @@ class FieldsManager(tk.Toplevel):
                 c.destroy()
 
             self.f_index = self.f_index[0]
-            self.f_edit_name, self.f_edit_val = self.lst_box_fields.get(self.f_index).split(" /// ")
+            self.f_edit_name, self.f_edit_val = self.lst_box_fields.get(self.f_index).split(" ___ ")
 
             ttk.Label(master=self.right_pan, text=LANG.get("edit_field")).grid()
 
@@ -1571,7 +1871,7 @@ class FieldsManager(tk.Toplevel):
             del self.project["files"][self.file_id]["extra_fields"][self.f_edit_name]
 
             self.lst_box_fields.delete(self.f_index)
-            self.lst_box_fields.insert(self.f_index, f"{self.new_fname_ent.get()} /// {self.new_val_ent.get()}")
+            self.lst_box_fields.insert(self.f_index, f"{self.new_fname_ent.get()} ___ {self.new_val_ent.get()}")
 
         elif self.new_fname_ent.get() != self.f_edit_name:
             self.project["files"][self.file_id]["extra_fields"][self.new_fname_ent.get()] = self.f_edit_val
@@ -1579,12 +1879,12 @@ class FieldsManager(tk.Toplevel):
             del self.project["files"][self.file_id]["extra_fields"][self.f_edit_name]
 
             self.lst_box_fields.delete(self.f_index)
-            self.lst_box_fields.insert(self.f_index, f"{self.new_fname_ent.get()} /// {self.f_edit_val}")
+            self.lst_box_fields.insert(self.f_index, f"{self.new_fname_ent.get()} ___ {self.f_edit_val}")
 
         else:
             self.project["files"][self.file_id]["extra_fields"][self.f_edit_name] = self.new_val_ent.get()
             self.lst_box_fields.delete(self.f_index)
-            self.lst_box_fields.insert(self.f_index, f"{self.new_fname_ent.get()} /// {self.new_val_ent.get()}")
+            self.lst_box_fields.insert(self.f_index, f"{self.new_fname_ent.get()} ___ {self.new_val_ent.get()}")
 
         self.nametowidget(".").project = self.project
         self.nametowidget(".").save_project()
@@ -1608,7 +1908,7 @@ class FieldsManager(tk.Toplevel):
             res = messagebox.askyesno(master=self, title=LANG.get("fields_manager"), message=LANG.get("del_field"))
             if res:
                 self.f_index = self.f_index[0]
-                self.f_del_name, _ = self.lst_box_fields.get(self.f_index).split(" /// ")
+                self.f_del_name, _ = self.lst_box_fields.get(self.f_index).split(" ___ ")
 
                 del self.project["files"][self.file_id]["extra_fields"][self.f_del_name]
 
@@ -1653,7 +1953,7 @@ class DetailPan(MyFrame):
         self.comment = self.project["files"][self.file_id]["comment"]
         self.extra_fields = self.project["files"][self.file_id]["extra_fields"]
         self.c_time = self.project["files"][self.file_id]["c_time"]
-        c_time = dt.datetime.fromtimestamp(self.c_time).strftime("%Y-%m-%d %H-%M-%S")
+        c_time = dt.datetime.fromtimestamp(self.c_time).strftime("%Y-%m-%d %H:%M:%S")
         if self.project["files"][self.file_id].get("binds"):
             self.binds = self.project["files"][self.file_id].get("binds")
         else:
@@ -1815,7 +2115,7 @@ class DetailPan(MyFrame):
                          self.source,
                          self.path,
                          self.labels,
-                         dt.datetime.fromtimestamp(self.c_time).strftime("%Y-%m-%d %H-%M-%S"))
+                         dt.datetime.fromtimestamp(self.c_time).strftime("%Y-%m-%d %H:%M:%S"))
                     )
                 )
         else:
@@ -1841,7 +2141,7 @@ class DetailPan(MyFrame):
                          self.source,
                          self.path,
                          self.labels,
-                         dt.datetime.fromtimestamp(self.c_time).strftime("%Y-%m-%d %H-%M-%S"))
+                         dt.datetime.fromtimestamp(self.c_time).strftime("%Y-%m-%d %H:%M:%S"))
                     )
                 )
 
@@ -1938,7 +2238,7 @@ class DetailPan(MyFrame):
                  self.source,
                  self.path,
                  selected_labels,
-                 dt.datetime.fromtimestamp(self.c_time).strftime("%Y-%m-%d %H-%M-%S"))
+                 dt.datetime.fromtimestamp(self.c_time).strftime("%Y-%m-%d %H:%M:%S"))
             )
         )
 
@@ -2015,7 +2315,7 @@ class TreePan(MyFrame):
         for file_id, i in self.project["files"].items():
             self.tree.insert("", tk.END, values=(file_id, i.get("source"), i.get("path"), i.get("labels"),
                                                  dt.datetime.fromtimestamp(i.get("c_time")).strftime(
-                                                     "%Y-%m-%d %H-%M-%S")))
+                                                     "%Y-%m-%d %H:%M:%S")))
 
     def selecting_item(self, event):
         for child in self.driver.detail_pan.winfo_children():
@@ -2035,16 +2335,8 @@ class TreePan(MyFrame):
             return
 
         try:
-            for c in self.nametowidget(".!myframe.!baseprojectview.!myframe2.!myframe").winfo_children():
-                print(self.nametowidget(c))
-                c.destroy()
-
             self.driver.detail_view = DetailPan(master=self.driver.detail_pan, driver=self.driver,
                                                 item_index=item_index, file_id=file_id)
-
-            for c in self.nametowidget(".!myframe.!baseprojectview.!myframe3").winfo_children():
-                print(self.nametowidget(c))
-                c.destroy()
 
             self.driver.zoom_view = ZoomPan(master=self.driver.right_pan, path=path_to_screen)
 
