@@ -1,7 +1,4 @@
-# -*- coding: utf-8 -*-
-# Advanced zoom example. Like in Google Maps.
-# It zooms only a tile, but not the whole image. So the zoomed tile occupies
-# constant memory and not crams it with a huge resized image for the large zooms.
+# fork of https://github.com/foobar167/junkyard/blob/master/zoom_advanced2.py
 import tkinter as tk
 import platform
 from tkinter import ttk
@@ -10,25 +7,27 @@ from PIL import Image, ImageTk
 OS = platform.system()
 
 
-class AutoScrollbar(ttk.Scrollbar):
-    ''' A scrollbar that hides itself if it's not needed.
-        Works only if you use the grid geometry manager '''
-    def set(self, lo, hi):
-        if float(lo) <= 0.0 and float(hi) >= 1.0:
-            self.grid_remove()
-        else:
-            self.grid()
-            ttk.Scrollbar.set(self, lo, hi)
-
-    def pack(self, **kw):
-        raise tk.TclError('Cannot use pack with this widget')
-
-    def place(self, **kw):
-        raise tk.TclError('Cannot use place with this widget')
+# class AutoScrollbar(ttk.Scrollbar):
+#     ''' A scrollbar that hides itself if it's not needed.
+#         Works only if you use the grid geometry manager '''
+#
+#     def set(self, lo, hi):
+#         if float(lo) <= 0.0 and float(hi) >= 1.0:
+#             self.grid_remove()
+#         else:
+#             self.grid()
+#             ttk.Scrollbar.set(self, lo, hi)
+#
+#     def pack(self, **kw):
+#         raise tk.TclError('Cannot use pack with this widget')
+#
+#     def place(self, **kw):
+#         raise tk.TclError('Cannot use place with this widget')
 
 
 class ZoomAdvanced(ttk.Frame):
     ''' Advanced zoom of the image '''
+
     def __init__(self, master, path):
         ''' Initialize the main Frame '''
         ttk.Frame.__init__(self, master=master)
@@ -40,8 +39,8 @@ class ZoomAdvanced(ttk.Frame):
         # self.vbar.grid(row=0, column=1, sticky='ns')
         # self.hbar.grid(row=1, column=0, sticky='we')
         # Create canvas and put image on it
-        self.canvas = tk.Canvas(self.master, highlightthickness=0,)
-                                # xscrollcommand=self.hbar.set, yscrollcommand=self.vbar.set)
+        self.canvas = tk.Canvas(self.master, highlightthickness=0, )
+        # xscrollcommand=self.hbar.set, yscrollcommand=self.vbar.set)
         self.canvas.grid(row=0, column=0, sticky='nswe')
         self.canvas.update()  # wait till canvas is created
         # self.vbar.configure(command=self.scroll_y)  # bind scrollbars to the canvas
@@ -53,10 +52,10 @@ class ZoomAdvanced(ttk.Frame):
         # Bind events to the Canvas
         self.canvas.bind('<Configure>', self.show_image)  # canvas is resized
         self.canvas.bind('<ButtonPress-1>', self.move_from)
-        self.canvas.bind('<B1-Motion>',     self.move_to)
+        self.canvas.bind('<B1-Motion>', self.move_to)
         self.canvas.bind('<MouseWheel>', self.wheel)  # with Windows and MacOS, but not Linux
-        self.canvas.bind('<Button-5>',   self.wheel)  # only with Linux, wheel scroll down
-        self.canvas.bind('<Button-4>',   self.wheel)  # only with Linux, wheel scroll up
+        self.canvas.bind('<Button-5>', self.wheel)  # only with Linux, wheel scroll down
+        self.canvas.bind('<Button-4>', self.wheel)  # only with Linux, wheel scroll up
         self.image = Image.open(path)  # open image
         self.width, self.height = self.image.size
         self.imscale = 1.0  # scale for the canvaas image
@@ -81,7 +80,7 @@ class ZoomAdvanced(ttk.Frame):
 
         x1 = self.canvas.canvasx(self.canvas.winfo_width())
 
-        hor_center = int(self.width // 2 - 1/2 * x1)
+        hor_center = int(self.width // 2 - 1 / 2 * x1)
         num_hor_steps = int(hor_center // hor_step)
 
         if num_hor_steps:
@@ -134,18 +133,18 @@ class ZoomAdvanced(ttk.Frame):
             return  # zoom only inside image area
         scale = 1.0
         if OS == 'Darwin':
-            if event.delta<0:  # scroll down
+            if event.delta < 0:  # scroll down
                 i = min(self.width, self.height)
                 if int(i * self.imscale) < 30:
                     return  # image is less than 30 pixels
                 self.imscale /= self.delta
-                scale        /= self.delta
-            if event.delta>0:  # scroll up
+                scale /= self.delta
+            if event.delta > 0:  # scroll up
                 i = min(self.canvas.winfo_width(), self.canvas.winfo_height())
                 if i < self.imscale:
                     return  # 1 pixel is bigger than the visible area
                 self.imscale *= self.delta
-                scale        *= self.delta
+                scale *= self.delta
         else:
             # Respond to Linux (event.num) or Windows (event.delta) wheel event
             if event.num == 5 or event.delta == -120:  # scroll down
@@ -153,13 +152,13 @@ class ZoomAdvanced(ttk.Frame):
                 if int(i * self.imscale) < 30:
                     return  # image is less than 30 pixels
                 self.imscale /= self.delta
-                scale        /= self.delta
+                scale /= self.delta
             if event.num == 4 or event.delta == 120:  # scroll up
                 i = min(self.canvas.winfo_width(), self.canvas.winfo_height())
                 if i < self.imscale:
                     return  # 1 pixel is bigger than the visible area
                 self.imscale *= self.delta
-                scale        *= self.delta
+                scale *= self.delta
         self.canvas.scale('all', x, y, scale, scale)  # rescale all canvas objects
         self.show_image()
 
@@ -200,8 +199,7 @@ class ZoomAdvanced(ttk.Frame):
 
 
 if __name__ == "__main__":
-    path = r'U:\DOZIK\WSPOLNE_DOIK\DOZIK-1\TOMASZ SASIAK\NOTINO\Listingi\Wszystkie-promocje-i-zniżki-Notino-w-jednym-miejscu.png'  # place path to your image here
-    root = tk.Tk()
-    app = ZoomAdvanced(root, path=path)
-    root.mainloop()
-    
+    # path = r'U:\DOZIK\WSPOLNE_DOIK\DOZIK-1\TOMASZ SASIAK\NOTINO\Listingi\Wszystkie-promocje-i-zniżki-Notino-w-jednym-miejscu.png'  # place path to your image here
+    # root = tk.Tk()
+    # app = ZoomAdvanced(root, path=path)
+    # root.mainloop()
