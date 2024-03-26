@@ -46,7 +46,7 @@ class MainWindow(tk.Tk):
         self.btn_quit = ttk.Button(master=self.menu, text=LANG.get("quit"), command=self.destroy)
         self.btn_quit.grid()
 
-        self.pat_formats = re.compile(r"(.png$|.jpg$|.jpeg$)")
+        self.pat_formats = re.compile(r"(.png$|.jpg$|.jpeg$|.pdf$)")
 
         self.project = None
 
