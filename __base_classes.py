@@ -218,3 +218,38 @@ class MyDialog(ctk.CTkInputDialog):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.grab_set()
+
+
+class ExtraField(ttk.Frame):
+    def __init__(self, field_name=None, field_val=None, file_id=None, *args, **kwargs):
+        ...
+        super().__init__(**kwargs)
+
+        self.field_name = field_name
+        self.field_val = field_val
+        self.file_id = file_id
+
+        self.columnconfigure(0)
+        self.columnconfigure(1)
+        self.columnconfigure(2)
+
+        self.lbl_field = ttk.Label(master=self, text=self.field_name)
+        self.lbl_field.grid(column=0, row=0)
+        self.ent_field = ttk.Entry(master=self, width=10)
+        self.ent_field.grid(column=1, row=0)
+        self.ent_field.insert(tk.END, self.field_val)
+        self.btn_field = ttk.Button(master=self, text=LANG.get("update"), command=self.update)
+        self.btn_field.grid(column=2, row=0)
+
+        self.project = self.nametowidget(".").load_project()
+
+    def update(self):
+        self.field_val = self.ent_field.get()
+
+        self.project["files"][self.file_id]["extra_fields"][self.lbl_field["text"]] = self.field_val
+
+        self.nametowidget(".").project = self.project
+        self.nametowidget(".").save_project()
+
+    def get_values(self):
+        return self.file_id, self.field_name, self.field_val

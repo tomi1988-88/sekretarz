@@ -1,5 +1,6 @@
 # fork of https://github.com/foobar167/junkyard/blob/master/zoom_advanced2.py
 import tkinter as tk
+import customtkinter as ctk
 import platform
 from tkinter import ttk
 from PIL import Image, ImageTk
@@ -24,6 +25,13 @@ OS = platform.system()
 #     def place(self, **kw):
 #         raise tk.TclError('Cannot use place with this widget')
 
+class MimicWheelEvent:
+    def __init__(self, x=1, y=1, delta=-120, num=5):
+        self.x = x
+        self.y = y
+        self.delta = delta
+        self.num = num
+
 
 class ZoomAdvanced(ttk.Frame):
     ''' Advanced zoom of the image '''
@@ -40,6 +48,7 @@ class ZoomAdvanced(ttk.Frame):
         # self.hbar.grid(row=1, column=0, sticky='we')
         # Create canvas and put image on it
         self.canvas = tk.Canvas(self.master, highlightthickness=0, )
+        # self.canvas = ctk.CTkCanvas(master=self.master, highlightthickness=0, )
         # xscrollcommand=self.hbar.set, yscrollcommand=self.vbar.set)
         self.canvas.grid(row=0, column=0, sticky='nswe')
         self.canvas.update()  # wait till canvas is created
@@ -63,16 +72,10 @@ class ZoomAdvanced(ttk.Frame):
         # Put image into container rectangle and use it to set proper coordinates to the image
         self.container = self.canvas.create_rectangle(0, 0, self.width, self.height, width=0)
 
-        self._center_view()
+        # self._center_view()
         self.show_image()
 
     def _center_view(self):
-        class MimicWheelEvent:
-            def __init__(self, x=1, y=1, delta=-120, num=5):
-                self.x = x
-                self.y = y
-                self.delta = delta
-                self.num = num
 
         self.canvas.xview(tk.SCROLL, 1, tk.UNITS)
         hor_step = self.canvas.canvasx(0)
@@ -199,7 +202,7 @@ class ZoomAdvanced(ttk.Frame):
 
 
 if __name__ == "__main__":
-    # path = r'U:\DOZIK\WSPOLNE_DOIK\DOZIK-1\TOMASZ SASIAK\NOTINO\Listingi\Wszystkie-promocje-i-zniżki-Notino-w-jednym-miejscu.png'  # place path to your image here
-    # root = tk.Tk()
-    # app = ZoomAdvanced(root, path=path)
-    # root.mainloop()
+    path = r'/home/tomasz/PycharmProjects/sekretarz/1/foto/62662726.png'  # place path to your image here
+    root = tk.Tk()
+    app = ZoomAdvanced(root, path=path)
+    root.mainloop()
