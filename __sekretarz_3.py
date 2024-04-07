@@ -8,6 +8,7 @@ import json
 import gc
 import shutil
 import uuid
+import webbrowser
 from tkinter import ttk
 import datetime as dt
 from tkinter import filedialog, messagebox
@@ -88,39 +89,25 @@ class LangVariables:
         ...
 
 
-def _log_it(project_path):
-    def decorator(func):
-        def wrapper(*args, **kwargs):
+def log_it(func):
+    def wrapper(*args, **kwargs):
+        if TheBrain.LOG_IT:
             try:
                 log_path = TheBrain.PROJECT_PATH.joinpath("log.log")
                 with open(log_path, "a") as log_file:
-                    line_to_save = f"{func.__name__}, {args}, {kwargs}\n"
+                    line_to_save = f"{dt.datetime.now(): %d-%m-%Y %H:%M:%S}, {func.__name__}, {args}, {kwargs}\n"
                     log_file.write(line_to_save)
             except AttributeError as e:
                 print(e)
 
-            return func(*args, **kwargs)
-        return wrapper
-    return decorator
-
-
-def log_it(func):
-    def wrapper(*args, **kwargs):
-        try:
-            log_path = TheBrain.PROJECT_PATH.joinpath("log.log")
-            with open(log_path, "a") as log_file:
-                line_to_save = f"{func.__name__}, {args}, {kwargs}\n"
-                log_file.write(line_to_save)
-        except AttributeError as e:
-            print(e)
-
         return func(*args, **kwargs)
     return wrapper
-# my_logger = log_it(TheBrain.PROJECT_PATH)
+
 
 class TheBrain:
 
     PROJECT_PATH = None
+    LOG_IT = True
 
     def __init__(self, main_window, *args, **kwargs):
         self.main_window = main_window
@@ -132,6 +119,46 @@ class TheBrain:
         self.temp_layer = TempLayer()
         self.file_pat_formats = re.compile(r"(.png$|.jpg$|.jpeg$)", flags=re.IGNORECASE)
         # self.file_pat_formats_str_list = [".png", ".jpg", ".jpeg", ".PNG", ".JPG", ".JPEG"]
+
+    @log_it
+    def move_down(self):
+        tree = self.main_window.main_frame.tree_pan.tree
+        item = tree.focus()
+        tree.move(
+            item,
+            tree.parent(item),
+            tree.index(item) + 1
+        )
+
+    @log_it
+    def move_up(self):
+        tree = self.main_window.main_frame.tree_pan.tree
+        item = tree.focus()
+        print(tree.prev(item))
+        tree.move(
+            item,
+            tree.parent(item),
+            tree.index(item) - 1
+        )
+
+    @log_it
+    def open_in_default_viewer(self, path: pathlib.Path):
+        path = self.project_path.joinpath(self.path)
+        try:
+            os.system(path)
+        except FileNotFoundError:
+            pass
+        except PermissionError:
+            pass
+
+    @log_it
+    def open_source_in_browser(self, src: str):
+        webbrowser.open(src, new=2)
+
+    @log_it
+    def open_in_new_browser(self, path: pathlib.Path):
+        path = self.project_path.joinpath(path)
+        webbrowser.open(str(path), new=2)
 
     @log_it
     def rename_file(self, old_name, file_id_new_name, file_data):
@@ -479,7 +506,6 @@ class TheBrain:
         self.collect_garbage()
 
 class AddFilesFromDirView(MyFrame):
-    @log_it
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
@@ -523,16 +549,13 @@ class AddFilesFromDirView(MyFrame):
         MyButton(master=self, text="Go back", command=self.go_back).grid(column=0, row=4, sticky=tk.E)
         MyButton(master=self, text="Add files", command=self.add_files_from_dir).grid(column=2, row=4, sticky=tk.W)
 
-    @log_it
     def browse(self):
         dialog = MyDialogWindow_AskDir(self.d_path, title="Select a directory with files to add")
         self.master.brain.main_window.wait_window(dialog)
 
-    @log_it
     def go_back(self):
         self.master.brain.go_to_base_project_view(self.master.brain.project_path)
 
-    @log_it
     def add_files_from_dir(self):
 
         self.master.brain.add_files_from_dir(self.d_path.get(), self.all_or_some_files_var.get())
@@ -540,7 +563,6 @@ class AddFilesFromDirView(MyFrame):
 
 
 class MenuBar(MyMenu):
-    @log_it
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
@@ -560,33 +582,26 @@ class MenuBar(MyMenu):
 
         self.add_command(label="Add files to project", command=self.add_files_from_dir_view, state=tk.DISABLED)  # todo : del or activate/deactivate - currently not necessary
 
-    @log_it
     def enable_buttons(self):
         self.entryconfigure("Add files to project", state=tk.NORMAL)
 
-    @log_it
     def new_project(self):
         self.master.brain.new_project_view()
 
-    @log_it
     def open_project(self):
         self.master.brain.open_project_view()
 
-    @log_it
     def settings(self):
         self.master.brain.settings_view()
 
-    @log_it
     def add_files_from_dir_view(self):
         self.master.brain.add_files_from_dir_view()
 
-    @log_it
     def close(self):
         self.destroy()
         self.master.destroy()
 
 class BaseProjectView(MyFrame):
-    @log_it
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.grid()
@@ -642,7 +657,6 @@ class MainWindow(ctk.CTk):
 
 
 class OpenProjectView(MyFrame):
-    @log_it
     def __init__(self, projects_list=None, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
@@ -675,22 +689,18 @@ class OpenProjectView(MyFrame):
         MyButton(master=self, text="Go back", command=self.go_back).grid(column=0, row=3, sticky=tk.NE)
         MyButton(master=self, text="Open project", command=self.go_to_base_project_view).grid(column=2, row=3, sticky=tk.NW)
 
-    @log_it
     def listbox_select(self, event):
         index = self.list_of_projects.curselection()
         if index:
             self.project_path.set(self.list_of_projects.get(index[0]))
 
-    @log_it
     def browse(self):
         MyDialogWindow_AskDir(self.project_path, title="Select a directory with a project")
 
-    @log_it
     def go_back(self):
         self.master.brain.go_back_to_main_menu_or_base_pro_view() # change in the brain: if self.project is set ->
                                             # go back to base pro view (keep the same view -> load from Temp_layer?
 
-    @log_it
     def go_to_base_project_view(self):
 
         project_path = pathlib.Path(self.project_path.get())
@@ -702,7 +712,6 @@ class OpenProjectView(MyFrame):
 
 
 class NewProjectView(MyFrame):
-    @log_it
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
@@ -725,14 +734,12 @@ class NewProjectView(MyFrame):
         MyButton(master=self, text="Go back", command=self.go_back).grid(column=0, row=2, sticky=tk.NE)
         MyButton(master=self, text="Create Project", command=self.create_project).grid(column=2, row=2, sticky=tk.NW)
 
-    @log_it
     def change_location(self):
         MyDialogWindow_AskDir_CreateDir(string_var_to_set_path=self.d_path, title="Select a directory to set a project")
         # ask_dir = filedialog.askdirectory(initialdir=self.d_path.get(), mustexist=False, title="Select a directory to set a project")
         # if ask_dir:
         #     self.d_path.set(ask_dir)
 
-    @log_it
     def create_project(self):
         temp_path = pathlib.Path(self.d_path.get())
         if temp_path.is_absolute():
@@ -740,14 +747,12 @@ class NewProjectView(MyFrame):
         else:
             messagebox.showerror(title="Wrong path", message="Pass an absolute path, eg. C:\\My documents\\Files...")
 
-    @log_it
     def go_back(self):
         self.master.brain.go_back_to_main_menu_or_base_pro_view() # change in the brain: if self.project is set ->
                                             # go back to base pro view (keep the same view -> load from Temp_layer?
 
 
 class MainMenuView(MyFrame):
-    @log_it
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
@@ -764,19 +769,15 @@ class MainMenuView(MyFrame):
         MyButton(master=self.menu, text="Settings", command=self.settings).grid()
         MyButton(master=self.menu, text=LANG.get("quit"), command=self.close).grid()
 
-    @log_it
     def new_project(self):
         self.master.brain.new_project_view()
 
-    @log_it
     def open_project(self):
         self.master.brain.open_project_view()
 
-    @log_it
     def settings(self):
         self.master.brain.settings_view()
 
-    @log_it
     def close(self):
         self.destroy()
         self.master.destroy()

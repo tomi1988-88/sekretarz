@@ -1,3 +1,4 @@
+import os
 import pathlib
 import webbrowser
 import tkinter as tk
@@ -122,10 +123,22 @@ class DetailPan(MyFrame):
             self.binds = []
         # c_time =
 
-        MyLabel(master=self, text=LANG.get("id")).grid(row=0, column=0)
+        self.main_options_pan = MyFrame(master=self)
+        self.main_options_pan.grid(row=0, column=0, columnspan=3)
+        self.main_options_pan.rowconfigure(0, weight=0)
+        self.main_options_pan.columnconfigure((0, 1, 2, 3, 4, 5), weight=1)
+
+        MyButton(master=self.main_options_pan, text=LANG.get("del_file"), command=self.del_file).grid(row=0, column=0)  # todo command
+        MyButton(master=self.main_options_pan, text="Show history", command=self.show_history).grid(row=0, column=1)  # todo command
+        MyButton(master=self.main_options_pan, text="Open in default viewer", command=self.open_in_default_viewer).grid(row=0, column=2)
+        MyButton(master=self.main_options_pan, text="Open in new detail pan", command=self.open_in_new_detail_pan).grid(row=0, column=3)
+        MyButton(master=self.main_options_pan, text="Move up", command=self.move_up).grid(row=0, column=4)
+        MyButton(master=self.main_options_pan, text="Move down", command=self.move_down).grid(row=0, column=5)
+
+        MyLabel(master=self, text=LANG.get("id")).grid(row=1, column=0)
 
         self.id_pan = MyFrame(master=self)
-        self.id_pan.grid(row=0, column=1)
+        self.id_pan.grid(row=1, column=1)
         self.id_pan.rowconfigure(0)
         self.id_pan.columnconfigure(0, weight=0)
         self.id_pan.columnconfigure(1, weight=1)
@@ -135,56 +148,56 @@ class DetailPan(MyFrame):
         self.f_name_var = tk.StringVar(master=self)
         self.f_name_var.set(self.f_name)
 
-        MyLabel(master=self.id_pan, text=f"{self.id} - ").grid(row=0, column=0)
+        MyLabel(master=self.id_pan, text=f"{self.id} - ").grid(row=1, column=0)
 
         self.ent_name = MyEntry(master=self.id_pan, textvariable=self.f_name_var)
-        self.ent_name.grid(row=0, column=1, sticky=tk.EW)
+        self.ent_name.grid(row=1, column=1, sticky=tk.EW)
 
-        MyButton(master=self, text=LANG.get("f_rename"), command=self.rename_file).grid(row=0, column=2)
+        MyButton(master=self, text=LANG.get("f_rename"), command=self.rename_file).grid(row=1, column=2)
 
-        MyLabel(master=self, text=LANG.get("source")).grid(row=1, column=0)
+        MyLabel(master=self, text=LANG.get("source")).grid(row=2, column=0)
 
         self.ent_src = MyEntry(master=self, textvariable=self.source_var)
         # self.ent_src.insert(tk.END, self.source)
-        self.ent_src.grid(row=1, column=1, sticky=tk.EW)
+        self.ent_src.grid(row=2, column=1, sticky=tk.EW)
 
         self.source_pan = MyFrame(master=self)
-        self.source_pan.grid(row=1, column=2)
+        self.source_pan.grid(row=2, column=2)
         self.source_pan.rowconfigure((0, 1), weight=0)
         self.source_pan.columnconfigure(0, weight=0)
 
         MyButton(master=self.source_pan, text=LANG.get("s_rename"), command=self.rename_source).grid(row=0, column=0)
         MyButton(master=self.source_pan, text="Open Src in Browser", command=self.open_source_in_browser).grid(row=1, column=0)
 
-        MyLabel(master=self, text=LANG.get("path")).grid(row=2, column=0)
+        MyLabel(master=self, text=LANG.get("path")).grid(row=3, column=0)
         path_broken = self.path
         if len(self.path) > 100:
             path_broken = path_broken[:99] + "\n    " + path_broken[99:]
         self.lbl_path = MyLabel(master=self, text=path_broken, width=100)
-        self.lbl_path.grid(row=2, column=1)
+        self.lbl_path.grid(row=3, column=1)
 
-        MyButton(master=self, text="Open File in Browser", command=self.open_in_new_window).grid(row=2, column=2)
+        MyButton(master=self, text="Open File in Browser", command=self.open_in_new_browser).grid(row=3, column=2)
 
-        MyLabel(master=self, text=LANG.get("labels")).grid(row=3, column=0)
+        MyLabel(master=self, text=LANG.get("labels")).grid(row=4, column=0)
         self.frame_lbls = MyFrame(master=self)
-        self.frame_lbls.grid(row=3, column=1, sticky=tk.EW)
+        self.frame_lbls.grid(row=4, column=1, sticky=tk.EW)
 
-        MyButton(master=self, text=LANG.get("manage_labels"), command=self.manage_labels).grid(row=3, column=2)
+        MyButton(master=self, text=LANG.get("manage_labels"), command=self.manage_labels).grid(row=4, column=2)
 
         for lbl in self.labels:
             MyLabel(master=self.frame_lbls, text=lbl).pack(side=tk.LEFT, padx=5, pady=2)
 
-        MyLabel(master=self, text=LANG.get("comment")).grid(row=4, column=0)
+        MyLabel(master=self, text=LANG.get("comment")).grid(row=5, column=0)
 
         self.tbox_com = scrolledtext.ScrolledText(master=self, height=4)
         self.tbox_com.insert("1.0", self.comment)
-        self.tbox_com.grid(row=4, column=1, sticky=tk.EW)
+        self.tbox_com.grid(row=5, column=1, sticky=tk.EW)
 
-        MyButton(master=self, text=LANG.get("alter_comment"), command=self.alter_comment).grid(row=4, column=2)
+        MyButton(master=self, text=LANG.get("alter_comment"), command=self.alter_comment).grid(row=5, column=2)
 
-        MyLabel(master=self, text=LANG.get("extra_fields")).grid(row=5, column=0)
+        MyLabel(master=self, text=LANG.get("extra_fields")).grid(row=6, column=0)
         self.frame_extra = MyFrame(master=self)
-        self.frame_extra.grid(row=5, column=1)
+        self.frame_extra.grid(row=6, column=1)
 
         self.frame_extra.columnconfigure(0)
         self.frame_extra.columnconfigure(1)
@@ -201,22 +214,46 @@ class DetailPan(MyFrame):
                        ).grid(row=index // 3, column=index % 3)
 
         MyButton(master=self, text=LANG.get("manage_fields"),
-                   command=self.manage_fields).grid(row=5, column=2)
+                   command=self.manage_fields).grid(row=6, column=2)
 
-        MyLabel(master=self, text=LANG.get("c_time")).grid(row=6, column=0)
+        MyLabel(master=self, text=LANG.get("c_time")).grid(row=7, column=0)
         lbl_ctime = MyLabel(master=self, text=c_time, width=100)
-        lbl_ctime.grid(row=6, column=1)
-
-        MyButton(master=self, text=LANG.get("del_file"), command=self.del_file).grid(row=7, column=1)  # todo command
+        lbl_ctime.grid(row=7, column=1)
 
         self.fields_manager = None
 
-    def open_source_in_browser(self):
-        webbrowser.open(self.source_var.get(), new=2)
 
-    def open_in_new_window(self):
-        path = self.master.brain.project_path.joinpath(self.path)
-        webbrowser.open(str(path), new=2)
+    def show_history(self):
+        ...
+
+    def move_down(self):
+        self.master.brain.move_down()
+
+    def move_up(self):
+        self.master.brain.move_up()
+
+    def open_in_new_detail_pan(self):
+        ...
+
+    def open_in_default_viewer(self):
+        self.master.brain.open_in_default_viewer(self.path)
+        # sh: 1: / home / tomasz / PycharmProjects / sekretarz / 2 / foto / skierowanie: not found
+        # sh: 1: / home / tomasz / PycharmProjects / sekretarz / 2 / foto / 62662726 as.png: Permission
+        # denied
+        # sh: 1: / home / tomasz / PycharmProjects / sekretarz / 2 / foto / Nikon - D750 - Image - Samples - 2.j
+        # pg: Permission
+        # denied
+        # path = self.master.brain.project_path.joinpath(self.path) # moved to th brain
+        # os.system(path)
+
+    def open_source_in_browser(self): # moved to th brain
+        self.master.brain.open_source_in_browser(self.source_var.get())
+
+    def open_in_new_browser(self): # moved to th brain
+        self.master.brain.open_in_new_browser(self.path)
+
+        # path = self.master.brain.project_path.joinpath(self.path) # moved to th brain
+        # webbrowser.open(str(path), new=2)
     # todo: add "open in new window option"
     # todo: send all those functions to the BRAIN
     def del_file(self):

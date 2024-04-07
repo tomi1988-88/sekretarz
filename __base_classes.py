@@ -37,6 +37,7 @@ class MyListbox(tk.Listbox):
         else:
             super(MyListbox, self).grid(sticky=tk.NSEW, **kwargs)
 
+
 class MyFrame(ctk.CTkFrame):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -95,6 +96,7 @@ class MyDialogWindow_AskDir(ctk.CTkToplevel):
         self.upper_row.rowconfigure(0)
         self.upper_row.columnconfigure(0, weight=0)
         self.upper_row.columnconfigure(1, weight=1)
+        self.upper_row.columnconfigure(2, weight=0)
 
         MyLabel(master=self.upper_row, text="Directory: ").grid(column=0, row=0)
 
@@ -104,6 +106,8 @@ class MyDialogWindow_AskDir(ctk.CTkToplevel):
 
         self.dir_option_menu = MyOptionMenu(master=self.upper_row, values=paths_for_dir_option_menu, command=self.dir_option_change)
         self.dir_option_menu.grid(column=1, row=0, sticky=tk.EW)
+
+        MyButton(master=self.upper_row, text="Go up", command=self.go_dir_up).grid(row=0, column=2)
 
         self.central_row = MyFrame(master=self)
         self.central_row.grid(column=1, row=2)
@@ -117,7 +121,7 @@ class MyDialogWindow_AskDir(ctk.CTkToplevel):
         scroll_y.grid(row=0, column=1, sticky=tk.NS)
         self.tree.configure(yscrollcommand=scroll_y.set)
 
-        self.tree.bind('<<TreeviewSelect>>', self.tree_select)
+        self.tree.bind('<Button-1>', self.tree_select)
         self.tree.bind("<Double-1>", self.tree_double_click)
 
         columns = ("File name", )
@@ -136,7 +140,7 @@ class MyDialogWindow_AskDir(ctk.CTkToplevel):
 
         MyLabel(master=self.bottom_row, text="Selected: ").grid(row=0, column=0)
 
-        self.var_selected_dir = tk.StringVar()
+        self.var_selected_dir = tk.StringVar(master=self.bottom_row)
         self.ent_selected_dir = MyEntry(master=self.bottom_row, textvariable=self.var_selected_dir, width=500)
         self.ent_selected_dir.grid(row=0, column=1)
 
@@ -146,6 +150,20 @@ class MyDialogWindow_AskDir(ctk.CTkToplevel):
         MyButton(master=self.bottom_row, text="Go back", command=self.destroy).grid(row=0, column=3)
 
         self.grab_set()
+
+    def go_dir_up(self):
+        dir_up = pathlib.Path(self.dir_option_menu.get()).parent
+
+        paths_for_dir_option_menu = [str(p) for p in [dir_up] + list(dir_up.parents)]
+        filepaths_in_current_dir = self.get_filepaths(dir_up)
+
+        self.dir_option_menu.configure(values=paths_for_dir_option_menu)
+        self.dir_option_menu.set(paths_for_dir_option_menu[0])
+        self.tree.delete(*self.tree.get_children())
+
+        for f_path in filepaths_in_current_dir:
+            self.tree.insert("", index=tk.END, iid=f_path, values=(f_path.name,))
+        self.var_selected_dir.set("")
 
     def dir_option_change(self, event):
         curr_dir = pathlib.Path(self.dir_option_menu.get())
@@ -161,11 +179,13 @@ class MyDialogWindow_AskDir(ctk.CTkToplevel):
         self.var_selected_dir.set(curr_dir)
 
     def tree_select(self, event):
+        # self.var_selected_dir.set(self.tree.selection()[0])
         self.var_selected_dir.set(self.tree.focus())
 
     def tree_double_click(self, event):
-        dst_path = pathlib.Path(self.tree.focus())
+        # dst_path = pathlib.Path(self.var_selected_dir.get())
         # dst_path = pathlib.Path(self.tree.selection()[0])
+        dst_path = pathlib.Path(self.tree.focus())
         if dst_path.is_dir():
             paths_for_dir_option_menu = [str(p) for p in [dst_path] + list(dst_path.parents)]
             filepaths_in_current_dir = self.get_filepaths(dst_path)
@@ -177,7 +197,7 @@ class MyDialogWindow_AskDir(ctk.CTkToplevel):
             for f_path in filepaths_in_current_dir:
                 self.tree.insert("", index=tk.END, iid=f_path, values=(f_path.name,))
 
-            self.var_selected_dir.set(dst_path) # todo? for some reason does not work - in dir_option_change() works perfectly
+            self.var_selected_dir.set(dst_path)
 
     def select_dir(self):
         self.string_var_to_set_path.set(self.var_selected_dir.get())
@@ -190,13 +210,12 @@ class MyDialogWindow_AskDir(ctk.CTkToplevel):
         return filepaths
 
 
-
 class MyDialogWindow_AskDir_CreateDir(MyDialogWindow_AskDir):
     def __init__(self, string_var_to_set_path, title, *args, **kwargs):
         super().__init__(string_var_to_set_path, title,*args, **kwargs)
 
-        self.upper_row.columnconfigure(2, weight=0)
-        MyButton(master=self.upper_row, text="Create dir", command=self.create_dir).grid(row=0, column=2)
+        self.upper_row.columnconfigure(3, weight=0)
+        MyButton(master=self.upper_row, text="Create dir", command=self.create_dir).grid(row=0, column=3)
 
     def create_dir(self):
         dialog = MyDialog(text="Pass a name for new directory", title="Create a new directory")
