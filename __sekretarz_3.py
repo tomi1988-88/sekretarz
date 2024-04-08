@@ -60,8 +60,13 @@ class HistoryManager:
     def restore_previous_state(self):
         ...
 
-    def show_previous_states(self):
-        ...
+    def get_history(self, _uuid):
+        history_dir = self.brain.project_path.joinpath('history')
+        files = [x.stem for x in history_dir.iterdir()]
+        if _uuid in files:
+            f_path = history_dir.joinpath(f"{_uuid}.json")
+            with open(f_path, "r") as f:
+                return json.load(f)
 
     def create_history_dir(self, project_path):
         project_path.joinpath("history").mkdir()
@@ -121,9 +126,32 @@ class TheBrain:
         # self.file_pat_formats_str_list = [".png", ".jpg", ".jpeg", ".PNG", ".JPG", ".JPEG"]
 
     @log_it
+    def open_in_new_window_pan(self, file_id: str):
+        ... # and create list with all opened windows and set changes in master and top level window?
+
+
+    @log_it
+    def show_history(self, file_id: str):
+        _uuid = self.project["files"][file_id]["uuid"]
+
+        history = self.history_manager.get_history(_uuid)
+
+        for action, val in history.items():
+
+            ... # todo show pan
+
+    @log_it
     def move_down(self):
         tree = self.main_window.main_frame.tree_pan.tree
         item = tree.focus()
+
+        next_item = tree.next(item)
+        # that's the reason why it should have been done with SQL
+        self.project["files"][item]["index"], self.project["files"][next_item]["index"] = self.project["files"][next_item]["index"], self.project["files"][item]["index"]
+        self.project["files"] = dict(sorted(self.project["files"].items(), key=lambda x: x[1]["index"]))
+
+        self.save_project()
+
         tree.move(
             item,
             tree.parent(item),
@@ -134,7 +162,14 @@ class TheBrain:
     def move_up(self):
         tree = self.main_window.main_frame.tree_pan.tree
         item = tree.focus()
-        print(tree.prev(item))
+
+        prev_item = tree.prev(item)
+
+        self.project["files"][item]["index"], self.project["files"][prev_item]["index"] = self.project["files"][prev_item]["index"], self.project["files"][item]["index"]
+        self.project["files"] = dict(sorted(self.project["files"].items(), key=lambda x: x[1]["index"]))
+
+        self.save_project()
+
         tree.move(
             item,
             tree.parent(item),
@@ -143,7 +178,7 @@ class TheBrain:
 
     @log_it
     def open_in_default_viewer(self, path: pathlib.Path):
-        path = self.project_path.joinpath(self.path)
+        path = self.project_path.joinpath(path)
         try:
             os.system(path)
         except FileNotFoundError:
@@ -627,7 +662,7 @@ class BaseProjectView(MyFrame):
         self.zoom_pan = MyLabel(master=self, text="Zoom Pan")
         self.zoom_pan.grid(row=0, column=1)
 
-        self.general_pan = MyLabel(master=self, text="General Pan")
+        self.general_pan = MyLabel(master=self, text="General Pan") # podłączyć Rotating pan
         self.general_pan.grid(row=1, column=1)
 
 

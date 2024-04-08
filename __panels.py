@@ -131,7 +131,7 @@ class DetailPan(MyFrame):
         MyButton(master=self.main_options_pan, text=LANG.get("del_file"), command=self.del_file).grid(row=0, column=0)  # todo command
         MyButton(master=self.main_options_pan, text="Show history", command=self.show_history).grid(row=0, column=1)  # todo command
         MyButton(master=self.main_options_pan, text="Open in default viewer", command=self.open_in_default_viewer).grid(row=0, column=2)
-        MyButton(master=self.main_options_pan, text="Open in new detail pan", command=self.open_in_new_detail_pan).grid(row=0, column=3)
+        MyButton(master=self.main_options_pan, text="Open in new detail pan", command=self.open_in_new_window_pan).grid(row=0, column=3)
         MyButton(master=self.main_options_pan, text="Move up", command=self.move_up).grid(row=0, column=4)
         MyButton(master=self.main_options_pan, text="Move down", command=self.move_down).grid(row=0, column=5)
 
@@ -224,7 +224,7 @@ class DetailPan(MyFrame):
 
 
     def show_history(self):
-        ...
+        self.master.brain.show_history(self.file_id)
 
     def move_down(self):
         self.master.brain.move_down()
@@ -232,8 +232,8 @@ class DetailPan(MyFrame):
     def move_up(self):
         self.master.brain.move_up()
 
-    def open_in_new_detail_pan(self):
-        ...
+    def open_in_new_window_pan(self):
+        self.master.brain.open_in_new_window_pan
 
     def open_in_default_viewer(self):
         self.master.brain.open_in_default_viewer(self.path)
@@ -441,3 +441,47 @@ class DetailPan(MyFrame):
                 self.nametowidget(".").save_project()
         else:
             messagebox.showerror(master=self, title=LANG.get("alter_comment"), message=LANG.get("same_comment"))
+
+
+class RotatingPan(MyFrame):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
+        self.rowconfigure(0, weight=0)
+        self.rowconfigure(1, weight=1)
+
+        self.columnconfigure(0, weight=1)
+
+        self.menu_bar = MyFrame(master=self)
+        self.menu_bar.grid(row=0, column=0)
+
+        self.menu_bar.rowconfigure(0, weigth=0)
+        self.menu_bar.columnconfigure((0, 1, 2, 3, 4))
+
+        self.pan = MyFrame()
+        self.pan.grid(row=1, column=0)
+
+        MyButton(master=self.menu_bar, text="General Pan", command=self.general_pan).grid(row=0, column=0)
+        MyButton(master=self.menu_bar, text="Label Pan", command=self.label_pan).grid(row=0, column=1)
+
+    def general_pan(self):
+        self.pan.destroy()
+        self.pan = GeneralPan()
+        self.pan.grid(row=1, column=0)
+
+    def label_pan(self):
+        self.pan.destroy()
+        self.pan = LabelPan()
+        self.pan.grid(row=1, column=0)
+
+class LabelPan(MyFrame):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
+        self.rowconfigure(0, weight=0)
+
+class GeneralPan(MyFrame):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
+        self.rowconfigure(0, weight=0)
