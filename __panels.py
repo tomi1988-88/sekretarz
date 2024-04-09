@@ -12,7 +12,9 @@ from __base_classes import (MyFrame,
                             MyLabel,
                             MyEntry,
                             MyButton,
-                            ExtraField)
+                            ExtraField,
+                            MyListbox,
+                            MyInputDialog)
 from __sekretarz_lang import LANG
 from __zoomed_canvas import ZoomAdvanced
 
@@ -179,13 +181,24 @@ class DetailPan(MyFrame):
         MyButton(master=self, text="Open File in Browser", command=self.open_in_new_browser).grid(row=3, column=2)
 
         MyLabel(master=self, text=LANG.get("labels")).grid(row=4, column=0)
-        self.frame_lbls = MyFrame(master=self)
-        self.frame_lbls.grid(row=4, column=1, sticky=tk.EW)
 
-        MyButton(master=self, text=LANG.get("manage_labels"), command=self.manage_labels).grid(row=4, column=2)
+        self.lbls_listbox = MyListbox(master=self)
+        self.lbls_listbox.grid(row=4, column=1)
 
-        for lbl in self.labels:
-            MyLabel(master=self.frame_lbls, text=lbl).pack(side=tk.LEFT, padx=5, pady=2)
+        self.lbls_listbox.insert(tk.END, *self.labels)
+
+        self.frame_lbls_btns = MyFrame(master=self)
+        self.frame_lbls_btns.grid(row=4, column=2)
+        self.frame_lbls_btns.rowconfigure((0, 4), weight=1)
+        self.frame_lbls_btns.rowconfigure((1, 2, 3,), weight=0)
+        self.frame_lbls_btns.columnconfigure(0, weight=0)
+        MyLabel(master=self.frame_lbls_btns, text=LANG.get("manage_labels")).grid(row=0, column=0)
+        # todo: combine the above
+        MyButton(master=self.frame_lbls_btns, text="Add Label(s)", command=self.add_labels).grid(row=1, column=0, sticky=tk.S)
+        MyButton(master=self.frame_lbls_btns, text="Remove Label(s)", command=self.remove_labels).grid(row=2, column=0)
+        MyButton(master=self.frame_lbls_btns, text="Move up", command=self.remove_labels).grid(row=3, column=0)
+        MyButton(master=self.frame_lbls_btns, text="Move down", command=self.remove_labels).grid(row=4, column=0, sticky=tk.N)
+
 
         MyLabel(master=self, text=LANG.get("comment")).grid(row=5, column=0)
 
@@ -221,7 +234,6 @@ class DetailPan(MyFrame):
         lbl_ctime.grid(row=7, column=1)
 
         self.fields_manager = None
-
 
     def show_history(self):
         self.master.brain.show_history(self.file_id)
@@ -336,7 +348,9 @@ class DetailPan(MyFrame):
     def go_to_source(self):
         ...
 
-    def manage_labels(self):
+    def remove_labels(self):
+        ...
+    def add_labels(self):
 
         self.lbl_manager = tk.Toplevel(master=self)
         self.lbl_manager.title(f"{LANG.get('label_man')}{self.file_id}")
@@ -436,9 +450,8 @@ class DetailPan(MyFrame):
         if comment != self.comment:
             res = messagebox.askyesno(master=self, title=LANG.get("alter_comment"), message=LANG.get("alter_comment"))
             if res:
-                self.project["files"][self.file_id]["comment"] = comment
+                self.master.brain.alter_comment(self.file_id, comment)
                 self.comment = comment
-                self.nametowidget(".").save_project()
         else:
             messagebox.showerror(master=self, title=LANG.get("alter_comment"), message=LANG.get("same_comment"))
 
@@ -455,10 +468,10 @@ class RotatingPan(MyFrame):
         self.menu_bar = MyFrame(master=self)
         self.menu_bar.grid(row=0, column=0)
 
-        self.menu_bar.rowconfigure(0, weigth=0)
-        self.menu_bar.columnconfigure((0, 1, 2, 3, 4))
+        self.menu_bar.rowconfigure(0, weight=0)
+        self.menu_bar.columnconfigure((0, 1, 2, 3, 4), weight=1)
 
-        self.pan = MyFrame()
+        self.pan = MyFrame(master=self)
         self.pan.grid(row=1, column=0)
 
         MyButton(master=self.menu_bar, text="General Pan", command=self.general_pan).grid(row=0, column=0)
@@ -466,12 +479,12 @@ class RotatingPan(MyFrame):
 
     def general_pan(self):
         self.pan.destroy()
-        self.pan = GeneralPan()
+        self.pan = GeneralPan(master=self)
         self.pan.grid(row=1, column=0)
 
     def label_pan(self):
         self.pan.destroy()
-        self.pan = LabelPan()
+        self.pan = LabelPan(master=self)
         self.pan.grid(row=1, column=0)
 
 class LabelPan(MyFrame):
@@ -479,6 +492,86 @@ class LabelPan(MyFrame):
         super().__init__(*args, **kwargs)
 
         self.rowconfigure(0, weight=0)
+        self.rowconfigure(1, weight=1)
+        # self.rowconfigure(2, weight=1)
+
+        self.columnconfigure(0, weight=1)
+        self.columnconfigure(1, weight=0)
+
+        MyLabel(master=self, text="Labels in the project").grid(row=0, column=0)
+
+        self.all_lbls_listbox = MyListbox(master=self)
+        self.all_lbls_listbox.grid(row=1, column=0)
+
+        self.all_lbls_listbox.insert(tk.END, *self.master.master.brain.project["labels"])
+
+        self.button_pan = MyFrame(master=self)
+        self.button_pan.grid(row=1, column=1)
+        self.button_pan.columnconfigure(0, weight=0)
+        self.button_pan.rowconfigure((0, 4), weight=1)
+        self.button_pan.rowconfigure((1, 2, 3, ), weight=0)
+
+        MyButton(master=self.button_pan, text="Move up", command=self.move_up).grid(row=0, column=0, sticky=tk.S)
+        MyButton(master=self.button_pan, text="Move down", command=self.move_down).grid(row=1, column=0)
+        MyButton(master=self.button_pan, text="Add Label to\nthe Project", command=self.add_label_to_project).grid(row=2, column=0)
+        MyButton(master=self.button_pan, text="Rename Label", command=self.rename_label).grid(row=3, column=0)
+        MyButton(master=self.button_pan, text="Delete Label").grid(row=4, column=0, sticky=tk.N)
+
+    def move_up(self):
+        index = self.all_lbls_listbox.curselection()
+        if not index:
+            return
+        index = index[0]
+        selected = self.all_lbls_listbox.get(index)
+        if index - 1 < 0:
+            return
+
+        all_labels = list(self.all_lbls_listbox.get(0, tk.END))
+        all_labels.remove(selected)
+        all_labels.insert(index - 1, selected)
+
+        self.all_lbls_listbox.delete(0, tk.END)
+        self.all_lbls_listbox.insert(tk.END, *all_labels)
+
+        self.master.master.brain.save_new_order_all_labels(all_labels)
+
+    def move_down(self):
+        index = self.all_lbls_listbox.curselection()
+        if not index:
+            return
+        index = index[0]
+        selected = self.all_lbls_listbox.get(index)
+        all_labels = list(self.all_lbls_listbox.get(0, tk.END))
+        if index + 1 > len(all_labels):
+            return
+
+        all_labels.remove(selected)
+        all_labels.insert(index + 1, selected)
+
+        self.all_lbls_listbox.delete(0, tk.END)
+        self.all_lbls_listbox.insert(tk.END, *all_labels)
+
+        self.master.master.brain.save_new_order_all_labels(all_labels)
+
+    def rename_label(self):
+        # todo
+        ...
+    def delete_label(self):
+        # todo
+        ...
+
+    def add_label_to_project(self):
+        dialog = MyInputDialog(text="Type in a new label name:", title="Add Label to the Project")
+        new_label = dialog.get_input()
+        if not new_label:
+            return
+        if new_label in self.all_lbls_listbox.get(0, tk.END):
+            return
+
+        self.all_lbls_listbox.insert(tk.END, new_label)
+        self.master.master.brain.add_label_to_project(new_label)
+
+
 
 class GeneralPan(MyFrame):
     def __init__(self, *args, **kwargs):

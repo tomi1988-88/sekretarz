@@ -23,22 +23,24 @@ from __base_classes import (MyFrame,
                             MyScrollableFrame,
                             MyRadiobutton,
                             MyDialogWindow_AskDir,
-                            MyDialogWindow_AskDir_CreateDir)
+                            MyDialogWindow_AskDir_CreateDir,
+                            MyInputDialog)
 from __panels import (TreePan,
                       ZoomPan,
-                      DetailPan)
-
+                      DetailPan,
+                      RotatingPan)
+from typing import (List)
 
 
 class HistoryManager:
-    """It's not tkinter obj but 'master' attr is set for simplicity"""
+    """"""
     def __init__(self, brain, *args, **kwargs):
         self.brain = brain
 
     def del_file(self, file_id):
-        self.master.project["del_files"][file_id] = copy.deepcopy(self.master.project["files"][file_id])
+        self.brain.project["del_files"][file_id] = copy.deepcopy(self.brain.project["files"][file_id])
 
-        del self.master.project["files"][file_id]
+        del self.brain.project["files"][file_id]
 
     def del_file_definietly(self):
         ...
@@ -125,6 +127,15 @@ class TheBrain:
         self.file_pat_formats = re.compile(r"(.png$|.jpg$|.jpeg$)", flags=re.IGNORECASE)
         # self.file_pat_formats_str_list = [".png", ".jpg", ".jpeg", ".PNG", ".JPG", ".JPEG"]
 
+    def save_new_order_all_labels(self, all_labels: List):
+        self.project["labels"] = all_labels
+        self.save_project()
+
+
+    def add_label_to_project(self, new_label: str):
+        self.project["labels"].append(new_label)
+        self.save_project()
+
     @log_it
     def open_in_new_window_pan(self, file_id: str):
         ... # and create list with all opened windows and set changes in master and top level window?
@@ -194,6 +205,11 @@ class TheBrain:
     def open_in_new_browser(self, path: pathlib.Path):
         path = self.project_path.joinpath(path)
         webbrowser.open(str(path), new=2)
+
+    @log_it
+    def alter_comment(self, file_id, comment):
+        self.project["files"][file_id]["comment"] = comment
+        self.save_project()
 
     @log_it
     def rename_file(self, old_name, file_id_new_name, file_data):
@@ -662,8 +678,8 @@ class BaseProjectView(MyFrame):
         self.zoom_pan = MyLabel(master=self, text="Zoom Pan")
         self.zoom_pan.grid(row=0, column=1)
 
-        self.general_pan = MyLabel(master=self, text="General Pan") # podłączyć Rotating pan
-        self.general_pan.grid(row=1, column=1)
+        self.rotating_pan = RotatingPan(master=self) # podłączyć Rotating pan
+        self.rotating_pan.grid(row=1, column=1)
 
 
 
