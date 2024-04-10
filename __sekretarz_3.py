@@ -127,6 +127,18 @@ class TheBrain:
         self.file_pat_formats = re.compile(r"(.png$|.jpg$|.jpeg$)", flags=re.IGNORECASE)
         # self.file_pat_formats_str_list = [".png", ".jpg", ".jpeg", ".PNG", ".JPG", ".JPEG"]
 
+
+    def rename_label(self, old_label: str, new_label: str, all_labels: List):
+
+        self.project["labels"] = all_labels
+
+        for file in self.project["files"]:
+            if old_label in file["labels"]:
+                index = file["labels"].index(old_label)
+                file["labels"].insert(index, new_label)
+
+        self.save_project()
+      
     def save_new_order_all_labels(self, all_labels: List):
         self.project["labels"] = all_labels
         self.save_project()
