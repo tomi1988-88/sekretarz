@@ -127,6 +127,11 @@ class TheBrain:
         self.file_pat_formats = re.compile(r"(.png$|.jpg$|.jpeg$)", flags=re.IGNORECASE)
         # self.file_pat_formats_str_list = [".png", ".jpg", ".jpeg", ".PNG", ".JPG", ".JPEG"]
 
+    def delete_label(self, label: str):
+        self.project["labels"].remove(label)
+        for file in self.project["files"]:
+            if label in file["labels"]:
+                file["labels"].remove(label)
 
     def rename_label(self, old_label: str, new_label: str, all_labels: List):
 
@@ -150,7 +155,7 @@ class TheBrain:
 
     @log_it
     def open_in_new_window_pan(self, file_id: str):
-        ... # and create list with all opened windows and set changes in master and top level window?
+        ... # and create a list with all opened windows and set changes in master and top level window?
 
 
     @log_it
