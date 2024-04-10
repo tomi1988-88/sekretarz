@@ -554,8 +554,24 @@ class LabelPan(MyFrame):
         self.master.master.brain.save_new_order_all_labels(all_labels)
 
     def rename_label(self):
-        # todo
-        ...
+        index = self.all_lbls_listbox.curselection()
+        if not index:
+            return
+        index = index[0]
+        old_label = self.all_lbls_listbox.get(index)
+        
+        dialog = MyInputDialog(text="Type in a new label name:", title="Add Label to the Project")
+        new_label = dialog.get_input()
+
+        all_labels = self.all_lbls_listbox.get(0, tk.END)
+
+        all_labels.insert(index, new_label)
+        all_labels.remove(old_label)
+        self.all_lbls_listbox.delete(0, tk.END)
+        self.all_lbls_listbox.insert(tk.END, *all_labels)
+
+        self.master.master.brain.rename_label(old_label, new_label)
+      
     def delete_label(self):
         # todo
         ...
