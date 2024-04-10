@@ -127,20 +127,53 @@ class TheBrain:
         self.file_pat_formats = re.compile(r"(.png$|.jpg$|.jpeg$)", flags=re.IGNORECASE)
         # self.file_pat_formats_str_list = [".png", ".jpg", ".jpeg", ".PNG", ".JPG", ".JPEG"]
 
+    def add_labels_to_file(self, panel):
+
+        all_lbls_listbox = self.main_window.main_frame.rotating_pan.pan.all_lbls_listbox
+        detail_pan = self.main_window.main_frame.detail_pan
+        file_id = detail_pan.file_id
+
+        index = all_lbls_listbox.curselection()
+        if not index:
+            return
+
+        current_labels = panel.lbls_listbox.get(0, tk.END)
+        label_to_add = all_lbls_listbox.get(index[0])
+        if label_to_add in current_labels:
+            return
+
+        detail_pan.lbls_listbox.insert(tk.END, label_to_add)
+
+        self.project["files"][file_id]["labels"].append(label_to_add)
+        self.save_project()
+
+        tree = self.main_window.main_frame.tree_pan.tree
+
+        tree.item(
+            file_id,
+            values=(
+                (file_id,
+                 self.project["files"][file_id]["source"],
+                 self.project["files"][file_id]["path"],
+                 self.project["files"][file_id]["labels"],
+                 dt.datetime.fromtimestamp(self.project["files"][file_id]["c_time"]).strftime("%Y-%m-%d %H:%M:%S"))
+            )
+        )
+
     def delete_label(self, label: str):
         self.project["labels"].remove(label)
-        for file in self.project["files"]:
-            if label in file["labels"]:
-                file["labels"].remove(label)
+        for file, data in self.project["files"].items():
+            if label in data["labels"]:
+                data["labels"].remove(label)
 
     def rename_label(self, old_label: str, new_label: str, all_labels: List):
 
         self.project["labels"] = all_labels
 
-        for file in self.project["files"]:
-            if old_label in file["labels"]:
-                index = file["labels"].index(old_label)
-                file["labels"].insert(index, new_label)
+        for file, data in self.project["files"].items():
+            if old_label in data["labels"]:
+                index = data["labels"].index(old_label)
+                data["labels"].insert(index, new_label)
 
         self.save_project()
       
@@ -164,9 +197,10 @@ class TheBrain:
 
         history = self.history_manager.get_history(_uuid)
 
-        for action, val in history.items():
+        if history:
+            for action, val in history.items():
 
-            ... # todo show pan
+                ... # todo show pan
 
     @log_it
     def move_down(self):

@@ -194,7 +194,7 @@ class DetailPan(MyFrame):
         self.frame_lbls_btns.columnconfigure(0, weight=0)
         MyLabel(master=self.frame_lbls_btns, text=LANG.get("manage_labels")).grid(row=0, column=0)
         # todo: combine the above
-        MyButton(master=self.frame_lbls_btns, text="Add Label(s)", command=self.add_labels).grid(row=1, column=0, sticky=tk.S)
+        MyButton(master=self.frame_lbls_btns, text="Add Label(s)", command=self.add_labels_to_file).grid(row=1, column=0, sticky=tk.S)
         MyButton(master=self.frame_lbls_btns, text="Remove Label(s)", command=self.remove_labels).grid(row=2, column=0)
         MyButton(master=self.frame_lbls_btns, text="Move up", command=self.remove_labels).grid(row=3, column=0)
         MyButton(master=self.frame_lbls_btns, text="Move down", command=self.remove_labels).grid(row=4, column=0, sticky=tk.N)
@@ -350,52 +350,53 @@ class DetailPan(MyFrame):
 
     def remove_labels(self):
         ...
-    def add_labels(self):
+    def add_labels_to_file(self):
+        self.master.brain.add_labels_to_file(self)
 
-        self.lbl_manager = tk.Toplevel(master=self)
-        self.lbl_manager.title(f"{LANG.get('label_man')}{self.file_id}")
-
-        self.lbl_manager.grab_set()
-
-        self.frame_lbl = MyFrame(master=self.lbl_manager)
-        self.frame_lbl.grid()
-
-        self.frame_lbl.columnconfigure(0)
-        self.frame_lbl.columnconfigure(1)
-        self.frame_lbl.columnconfigure(2)
-
-        self.frame_lbl.rowconfigure(0)
-        self.frame_lbl.rowconfigure(1)
-
-        self.btn_menu = MyFrame(master=self.frame_lbl)
-        self.btn_menu.grid(row=1, column=2, )
-
-        ttk.Label(master=self.frame_lbl, text=LANG.get("all_lbls")).grid(row=0, column=0)
-        ttk.Label(master=self.frame_lbl, text=LANG.get("file_lbls")).grid(row=0, column=1)
-
-        self.lst_box_all = tk.Listbox(master=self.frame_lbl, width=60)
-        self.lst_box_all.grid(row=1, column=0, sticky=tk.NSEW)
-
-        all_labels = self.project["labels"]
-        for l in all_labels:
-            self.lst_box_all.insert(tk.END, l)
-
-        self.lst_box_file = tk.Listbox(master=self.frame_lbl, width=60)
-        self.lst_box_file.grid(row=1, column=1, sticky=tk.NSEW)
-
-        self.project = self.nametowidget(".").load_project()
-
-        file_labels = self.project["files"][self.file_id]["labels"]
-        for l in file_labels:
-            self.lst_box_file.insert(tk.END, l)
-
-        ttk.Button(master=self.btn_menu, text=LANG.get("sel_lbl"), command=self._select_lbl).grid(row=0)
-        ttk.Button(master=self.btn_menu, text=LANG.get("remove_lbl"), command=self._remove_lbl).grid(row=1)
-        ttk.Button(master=self.btn_menu, text=LANG.get("confirm_sel"),
-                   command=self._confirm_sel).grid(row=2)
-        ttk.Button(master=self.btn_menu, text=LANG.get("go_back"), command=self.lbl_manager.destroy).grid(row=3)
-        ttk.Button(master=self.btn_menu, text=LANG.get("go_to_labels"),
-                   command=self._go_to_label_manager).grid(row=4)
+        # self.lbl_manager = tk.Toplevel(master=self)
+        # self.lbl_manager.title(f"{LANG.get('label_man')}{self.file_id}")
+        #
+        # self.lbl_manager.grab_set()
+        #
+        # self.frame_lbl = MyFrame(master=self.lbl_manager)
+        # self.frame_lbl.grid()
+        #
+        # self.frame_lbl.columnconfigure(0)
+        # self.frame_lbl.columnconfigure(1)
+        # self.frame_lbl.columnconfigure(2)
+        #
+        # self.frame_lbl.rowconfigure(0)
+        # self.frame_lbl.rowconfigure(1)
+        #
+        # self.btn_menu = MyFrame(master=self.frame_lbl)
+        # self.btn_menu.grid(row=1, column=2, )
+        #
+        # ttk.Label(master=self.frame_lbl, text=LANG.get("all_lbls")).grid(row=0, column=0)
+        # ttk.Label(master=self.frame_lbl, text=LANG.get("file_lbls")).grid(row=0, column=1)
+        #
+        # self.lst_box_all = tk.Listbox(master=self.frame_lbl, width=60)
+        # self.lst_box_all.grid(row=1, column=0, sticky=tk.NSEW)
+        #
+        # all_labels = self.project["labels"]
+        # for l in all_labels:
+        #     self.lst_box_all.insert(tk.END, l)
+        #
+        # self.lst_box_file = tk.Listbox(master=self.frame_lbl, width=60)
+        # self.lst_box_file.grid(row=1, column=1, sticky=tk.NSEW)
+        #
+        # self.project = self.nametowidget(".").load_project()
+        #
+        # file_labels = self.project["files"][self.file_id]["labels"]
+        # for l in file_labels:
+        #     self.lst_box_file.insert(tk.END, l)
+        #
+        # ttk.Button(master=self.btn_menu, text=LANG.get("sel_lbl"), command=self._select_lbl).grid(row=0)
+        # ttk.Button(master=self.btn_menu, text=LANG.get("remove_lbl"), command=self._remove_lbl).grid(row=1)
+        # ttk.Button(master=self.btn_menu, text=LANG.get("confirm_sel"),
+        #            command=self._confirm_sel).grid(row=2)
+        # ttk.Button(master=self.btn_menu, text=LANG.get("go_back"), command=self.lbl_manager.destroy).grid(row=3)
+        # ttk.Button(master=self.btn_menu, text=LANG.get("go_to_labels"),
+        #            command=self._go_to_label_manager).grid(row=4)
 
     def _go_to_label_manager(self):
         self.lbl_manager.destroy()
@@ -532,6 +533,7 @@ class LabelPan(MyFrame):
 
         self.all_lbls_listbox.delete(0, tk.END)
         self.all_lbls_listbox.insert(tk.END, *all_labels)
+        self.all_lbls_listbox.selection_set(index - 1)
 
         self.master.master.brain.save_new_order_all_labels(all_labels)
 
@@ -551,6 +553,8 @@ class LabelPan(MyFrame):
         self.all_lbls_listbox.delete(0, tk.END)
         self.all_lbls_listbox.insert(tk.END, *all_labels)
 
+        self.all_lbls_listbox.selection_set(index + 1)
+
         self.master.master.brain.save_new_order_all_labels(all_labels)
 
     def rename_label(self):
@@ -563,7 +567,7 @@ class LabelPan(MyFrame):
         dialog = MyInputDialog(text="Type in a new label name:", title="Add Label to the Project")
         new_label = dialog.get_input()
 
-        all_labels = self.all_lbls_listbox.get(0, tk.END)
+        all_labels = list(self.all_lbls_listbox.get(0, tk.END))
 
         all_labels.insert(index, new_label)
         all_labels.remove(old_label)
