@@ -570,11 +570,13 @@ class LabelPan(MyFrame):
         self.all_lbls_listbox.delete(0, tk.END)
         self.all_lbls_listbox.insert(tk.END, *all_labels)
 
-        self.master.master.brain.rename_label(old_label, new_label)
+        self.master.master.brain.rename_label(old_label, new_label, all_labels)
       
     def delete_label(self):
-        # todo
-        ...
+        index = self.all_lbls_listbox.curselection()
+        if not index:
+            return
+        index = index[0]
 
     def add_label_to_project(self):
         dialog = MyInputDialog(text="Type in a new label name:", title="Add Label to the Project")
