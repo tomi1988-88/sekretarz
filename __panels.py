@@ -577,7 +577,13 @@ class LabelPan(MyFrame):
         if not index:
             return
         index = index[0]
-
+        label = self.all_lbls_listbox.get(index)
+        res = messagebox.askyesno(master=self, title=f"Are you sure you want to delete {label}", message=f"Are you sure you want to delete {label}")
+        if res:
+            self.all_lbls_listbox.delete(index)
+            self.master.master.brain.delete_label(label)
+            
+  
     def add_label_to_project(self):
         dialog = MyInputDialog(text="Type in a new label name:", title="Add Label to the Project")
         new_label = dialog.get_input()
