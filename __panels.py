@@ -475,12 +475,12 @@ class RotatingPan(MyFrame):
         self.pan = MyFrame(master=self)
         self.pan.grid(row=1, column=0)
 
-        MyButton(master=self.menu_bar, text="General Pan", command=self.general_pan).grid(row=0, column=0)
+        MyButton(master=self.menu_bar, text="General Pan", command=self.general_history_pan).grid(row=0, column=0)
         MyButton(master=self.menu_bar, text="Label Pan", command=self.label_pan).grid(row=0, column=1)
 
-    def general_pan(self):
+    def general_history_pan(self):
         self.pan.destroy()
-        self.pan = GeneralPan(master=self)
+        self.pan = GeneralHistoryPan(master=self)
         self.pan.grid(row=1, column=0)
 
     def label_pan(self):
@@ -601,7 +601,7 @@ class LabelPan(MyFrame):
 
 
 
-class GeneralPan(MyFrame):
+class GeneralHistoryPan(MyFrame):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
