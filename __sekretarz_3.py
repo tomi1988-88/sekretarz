@@ -29,7 +29,8 @@ from __panels import (TreePan,
                       ZoomPan,
                       DetailPan,
                       RotatingPan)
-from typing import (List)
+from typing import (List,
+                    Dict)
 
 
 class HistoryManager:
@@ -37,7 +38,7 @@ class HistoryManager:
     def __init__(self, brain, *args, **kwargs):
         self.brain = brain
 
-    def del_file(self, file_id):
+    def del_file(self, file_id: str):
         self.brain.project["del_files"][file_id] = copy.deepcopy(self.brain.project["files"][file_id])
 
         del self.brain.project["files"][file_id]
@@ -45,7 +46,7 @@ class HistoryManager:
     def del_file_definietly(self):
         ...
 
-    def save_previous_state(self, _uuid, key, value): # should be done with try/except or dict?
+    def save_previous_state(self, _uuid: str, key: str, value: Dict): # should be done with try/except or dict?
         if self.check_if_history_file_exists(_uuid):
             h_data = self.load_history_file(_uuid)
 
@@ -62,7 +63,7 @@ class HistoryManager:
     def restore_previous_state(self):
         ...
 
-    def get_history(self, _uuid):
+    def get_history(self, _uuid: str):
         history_dir = self.brain.project_path.joinpath('history')
         files = [x.stem for x in history_dir.iterdir()]
         if _uuid in files:
@@ -70,19 +71,34 @@ class HistoryManager:
             with open(f_path, "r") as f:
                 return json.load(f)
 
-    def create_history_dir(self, project_path):
+    def save_to_general_history(self, _uuid_or_project: str, key: str, value: Dict):
+        gh_data = json.load_history_file('general_history')
+        gh_data[f"{_uuid_or_project}_{str(int(dt.datetime.today().timestamp()))}"] = value
+
+        self.save_history_file('general_history', gh_data)
+                                         
+    def get_general_history(self):
+        with open(self.brain.project_path.joinpath('history\general_history.json'), mode="r") as f:
+            return json.load(f)
+  
+    def create_history_dir(self, project_path: pathlib.Path):
         project_path.joinpath("history").mkdir()
 
-    def check_if_history_file_exists(self, _uuid):
+    def create_general_history_file(self, project_path: pathlib.Path):
+        with open(self.brain.project_path.joinpath(f"history/general_history.json"), mode="w") as f: # todo: sth went wrong
+            general_history_file = dict()
+            json.dump(general_history_file, f, indent=4)
+  
+    def check_if_history_file_exists(self, _uuid: str):
         hd_path = self.brain.project_path.joinpath(f"history/{_uuid}.json")
         return hd_path.exists()
 
-    def load_history_file(self, _uuid):
-        with open(self.brain.project_path.joinpath(f"history/{_uuid}.json"), mode="r") as f:
+    def load_history_file(self, _uuid_or_general: str):
+        with open(self.brain.project_path.joinpath(f"history/{_uuid_or_general}.json"), mode="r") as f:
             return json.load(f)
 
-    def save_history_file(self, _uuid, h_file):
-        with open(self.brain.project_path.joinpath(f"history/{_uuid}.json"), mode="w") as f: # todo: sth went wrong
+    def save_history_file(self, _uuid_or_general: str, h_file: Dict):
+        with open(self.brain.project_path.joinpath(f"history/{_uuid_or_general}.json"), mode="w") as f: # todo: sth went wrong
             json.dump(h_file, f, indent=4)
 
 class TempLayer:
@@ -477,7 +493,8 @@ class TheBrain:
 
         self.history_manager.create_history_dir(self.project_path) # should be in try/except with save project -
         # if a history dir still exists after manual del of a project
-
+        self.history_manager.create_general_history_file(self.project_path)
+      
         self.go_to_base_project_view(self.project_path)
 
         TheBrain.PROJECT_PATH = self.project_path
