@@ -131,11 +131,10 @@ class DetailPan(MyFrame):
         self.main_options_pan.columnconfigure((0, 1, 2, 3, 4, 5), weight=1)
 
         MyButton(master=self.main_options_pan, text=LANG.get("del_file"), command=self.del_file).grid(row=0, column=0)  # todo command
-        MyButton(master=self.main_options_pan, text="Show history", command=self.show_history).grid(row=0, column=1)  # todo command
-        MyButton(master=self.main_options_pan, text="Open in default viewer", command=self.open_in_default_viewer).grid(row=0, column=2)
-        MyButton(master=self.main_options_pan, text="Open in new detail pan", command=self.open_in_new_window_pan).grid(row=0, column=3)
-        MyButton(master=self.main_options_pan, text="Move up", command=self.move_up).grid(row=0, column=4)
-        MyButton(master=self.main_options_pan, text="Move down", command=self.move_down).grid(row=0, column=5)
+        MyButton(master=self.main_options_pan, text="Open in default viewer", command=self.open_in_default_viewer).grid(row=0, column=1)
+        MyButton(master=self.main_options_pan, text="Open in new detail pan", command=self.open_in_new_window_pan).grid(row=0, column=2)
+        MyButton(master=self.main_options_pan, text="Move up", command=self.move_up_tree).grid(row=0, column=3)
+        MyButton(master=self.main_options_pan, text="Move down", command=self.move_down_tree).grid(row=0, column=4)
 
         MyLabel(master=self, text=LANG.get("id")).grid(row=1, column=0)
 
@@ -233,16 +232,16 @@ class DetailPan(MyFrame):
         lbl_ctime = MyLabel(master=self, text=c_time, width=100)
         lbl_ctime.grid(row=7, column=1)
 
-        self.fields_manager = None
+        self.master.brain.set_file_or_project_history(self.uuid, self.file_id)
 
-    def show_history(self):
-        self.master.brain.show_history(self.file_id)
+    def add_labels_to_file(self):
+        self.master.brain.add_labels_to_file(self)
 
-    def move_down(self):
-        self.master.brain.move_down()
+    def move_down_tree(self):
+        self.master.brain.move_down_tree()
 
-    def move_up(self):
-        self.master.brain.move_up()
+    def move_up_tree(self):
+        self.master.brain.move_up_tree()
 
     def open_in_new_window_pan(self):
         self.master.brain.open_in_new_window_pan
@@ -350,100 +349,6 @@ class DetailPan(MyFrame):
 
     def remove_labels(self):
         ...
-    def add_labels_to_file(self):
-        self.master.brain.add_labels_to_file(self)
-
-        # self.lbl_manager = tk.Toplevel(master=self)
-        # self.lbl_manager.title(f"{LANG.get('label_man')}{self.file_id}")
-        #
-        # self.lbl_manager.grab_set()
-        #
-        # self.frame_lbl = MyFrame(master=self.lbl_manager)
-        # self.frame_lbl.grid()
-        #
-        # self.frame_lbl.columnconfigure(0)
-        # self.frame_lbl.columnconfigure(1)
-        # self.frame_lbl.columnconfigure(2)
-        #
-        # self.frame_lbl.rowconfigure(0)
-        # self.frame_lbl.rowconfigure(1)
-        #
-        # self.btn_menu = MyFrame(master=self.frame_lbl)
-        # self.btn_menu.grid(row=1, column=2, )
-        #
-        # ttk.Label(master=self.frame_lbl, text=LANG.get("all_lbls")).grid(row=0, column=0)
-        # ttk.Label(master=self.frame_lbl, text=LANG.get("file_lbls")).grid(row=0, column=1)
-        #
-        # self.lst_box_all = tk.Listbox(master=self.frame_lbl, width=60)
-        # self.lst_box_all.grid(row=1, column=0, sticky=tk.NSEW)
-        #
-        # all_labels = self.project["labels"]
-        # for l in all_labels:
-        #     self.lst_box_all.insert(tk.END, l)
-        #
-        # self.lst_box_file = tk.Listbox(master=self.frame_lbl, width=60)
-        # self.lst_box_file.grid(row=1, column=1, sticky=tk.NSEW)
-        #
-        # self.project = self.nametowidget(".").load_project()
-        #
-        # file_labels = self.project["files"][self.file_id]["labels"]
-        # for l in file_labels:
-        #     self.lst_box_file.insert(tk.END, l)
-        #
-        # ttk.Button(master=self.btn_menu, text=LANG.get("sel_lbl"), command=self._select_lbl).grid(row=0)
-        # ttk.Button(master=self.btn_menu, text=LANG.get("remove_lbl"), command=self._remove_lbl).grid(row=1)
-        # ttk.Button(master=self.btn_menu, text=LANG.get("confirm_sel"),
-        #            command=self._confirm_sel).grid(row=2)
-        # ttk.Button(master=self.btn_menu, text=LANG.get("go_back"), command=self.lbl_manager.destroy).grid(row=3)
-        # ttk.Button(master=self.btn_menu, text=LANG.get("go_to_labels"),
-        #            command=self._go_to_label_manager).grid(row=4)
-
-    def _go_to_label_manager(self):
-        self.lbl_manager.destroy()
-        self.nametowidget(".!myframe.!baseprojectview").label_manager()
-
-    def _select_lbl(self):
-        sel_lbl = self.lst_box_all.curselection()
-        if sel_lbl and not self.lst_box_all.get(sel_lbl[0]) in self.lst_box_file.get(0, tk.END):
-            self.lst_box_file.insert(tk.END, self.lst_box_all.get(sel_lbl[0]))
-
-    def _remove_lbl(self):
-        rem_lbl = self.lst_box_file.curselection()
-        if rem_lbl:
-            self.lst_box_file.delete(rem_lbl[0])
-
-    def _confirm_sel(self):
-        selected_labels = self.lst_box_file.get(0, tk.END)
-        print(selected_labels)
-        self.project["files"][self.file_id]["labels"] = list(selected_labels)
-        print(self.project["files"][self.file_id]["labels"])
-
-        self.nametowidget(".").save_project()
-        self.project = self.nametowidget(".").load_project()
-
-        self.labels = self.project["files"][self.file_id]["labels"]
-
-        for child in self.frame_lbls.winfo_children():
-            child.destroy()
-
-        for lbl in self.labels:
-            ttk.Label(master=self.frame_lbls, text=lbl).pack(side=tk.LEFT, padx=5, pady=2)
-
-        self.nametowidget(".!myframe.!baseprojectview.!myframe2.!treepan").project = self.project
-
-        selected_labels = " ".join(selected_labels)
-        tree_pan = self.nametowidget(".!myframe.!baseprojectview.!myframe2.!treepan")
-        tree_pan.project = self.project
-        tree_pan.tree.item(
-            self.file_id,
-            values=(
-                (self.file_id,
-                 self.source,
-                 self.path,
-                 selected_labels,
-                 dt.datetime.fromtimestamp(self.c_time).strftime("%Y-%m-%d %H:%M:%S"))
-            )
-        )
 
     def alter_comment(self):
         comment = self.tbox_com.get("1.0", tk.END)[:-1]
@@ -475,13 +380,22 @@ class RotatingPan(MyFrame):
         self.pan = MyFrame(master=self)
         self.pan.grid(row=1, column=0)
 
-        MyButton(master=self.menu_bar, text="General Pan", command=self.general_history_pan).grid(row=0, column=0)
-        MyButton(master=self.menu_bar, text="Label Pan", command=self.label_pan).grid(row=0, column=1)
+        MyButton(master=self.menu_bar, text="File History", command=self.file_history_pan).grid(row=0, column=0)
+        MyButton(master=self.menu_bar, text="Project History", command=self.project_history_pan).grid(row=0, column=1)
+        MyButton(master=self.menu_bar, text="Label Pan", command=self.label_pan).grid(row=0, column=2)
 
-    def general_history_pan(self):
+    def file_history_pan(self):
         self.pan.destroy()
-        self.pan = GeneralHistoryPan(master=self)
+        self.pan = FileHistoryPan(master=self)
         self.pan.grid(row=1, column=0)
+        # todo: scan detail pan to get File id -
+
+    def project_history_pan(self):
+        self.pan.destroy()
+        self.pan = ProjectHistoryPan(master=self)
+        self.pan.grid(row=1, column=0)
+
+        self.master.brain.set_file_or_project_history()
 
     def label_pan(self):
         self.pan.destroy()
@@ -501,7 +415,7 @@ class LabelPan(MyFrame):
 
         MyLabel(master=self, text="Labels in the project").grid(row=0, column=0)
 
-        self.all_lbls_listbox = MyListbox(master=self)
+        self.all_lbls_listbox = MyListbox(master=self, selectmode=tk.MULTIPLE)
         self.all_lbls_listbox.grid(row=1, column=0)
 
         self.all_lbls_listbox.insert(tk.END, *self.master.master.brain.project["labels"])
@@ -600,9 +514,49 @@ class LabelPan(MyFrame):
         self.master.master.brain.add_label_to_project(new_label)
 
 
-
-class GeneralHistoryPan(MyFrame):
+class ProjectHistoryPan(MyFrame):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
         self.rowconfigure(0, weight=0)
+        self.rowconfigure(1, weight=1)
+        self.columnconfigure(0, weight=1)
+        self.columnconfigure(1, weight=0)
+
+        MyLabel(master=self, text="Project History Pan").grid(row=0, column=0)
+
+        self.history_listbox = MyListbox(master=self)
+        self.history_listbox.grid(row=1, column=0)
+
+    def __class__(self):
+        return "ProjectHistoryPan"
+
+class FileHistoryPan(MyFrame):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
+        self.rowconfigure(0, weight=0)
+        self.rowconfigure(1, weight=0)
+        self.rowconfigure(2, weight=1)
+        self.columnconfigure(0, weight=1)
+        self.columnconfigure(1, weight=0)
+
+        MyLabel(master=self, text="File History Pan").grid(row=0, column=0)
+
+        self.file_id_var = tk.StringVar()
+        self.file_id_var.set("")
+
+        MyLabel(master=self, textvariable=self.file_id_var).grid(row=1, column=0)
+
+        self.history_listbox = MyListbox(master=self)
+        self.history_listbox.grid(row=2, column=0)
+
+    def set_file_history(self, file_id, file_history):
+        self.file_id_var.set(file_id)
+
+        self.history_listbox.delete(0, tk.END)
+
+        self.history_listbox.insert(tk.END, *file_history)
+
+    def __class__(self):
+        return "FileHistoryPan"

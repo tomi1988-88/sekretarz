@@ -28,7 +28,9 @@ from __base_classes import (MyFrame,
 from __panels import (TreePan,
                       ZoomPan,
                       DetailPan,
-                      RotatingPan)
+                      RotatingPan,
+                      FileHistoryPan,
+                      ProjectHistoryPan)
 from typing import (List,
                     Dict)
 
@@ -47,18 +49,29 @@ class HistoryManager:
         ...
 
     def save_previous_state(self, _uuid: str, key: str, value: Dict): # should be done with try/except or dict?
+        time_record = str(int(dt.datetime.today().timestamp()))
+
         if self.check_if_history_file_exists(_uuid):
             h_data = self.load_history_file(_uuid)
 
-            h_data[f"{key}_{str(int(dt.datetime.today().timestamp()))}"] = value
+            h_data[f"{key}_{time_record}"] = value
 
             self.save_history_file(_uuid, h_data)
+            self.save_to_general_history(_uuid, key, value, time_record)
         else:
             h_data = dict()
-
-            h_data[f"{key}_{str(int(dt.datetime.today().timestamp()))}"] = value
+            h_data[f"{key}_{time_record}"] = value
 
             self.save_history_file(_uuid, h_data)
+            self.save_to_general_history(_uuid, key, value, time_record)
+
+    def save_to_general_history(self, _uuid_or_project: str, key: str, value: Dict, time_record=None):
+        time_record = time_record if time_record else str(int(dt.datetime.today().timestamp()))
+
+        gh_data = json.load_history_file('general_history')
+        gh_data[f"{_uuid_or_project}_{time_record}"] = {key: value}
+
+        self.save_history_file('general_history', gh_data)
 
     def restore_previous_state(self):
         ...
@@ -71,12 +84,6 @@ class HistoryManager:
             with open(f_path, "r") as f:
                 return json.load(f)
 
-    def save_to_general_history(self, _uuid_or_project: str, key: str, value: Dict):
-        gh_data = json.load_history_file('general_history')
-        gh_data[f"{_uuid_or_project}_{str(int(dt.datetime.today().timestamp()))}"] = value
-
-        self.save_history_file('general_history', gh_data)
-                                         
     def get_general_history(self):
         with open(self.brain.project_path.joinpath('history\general_history.json'), mode="r") as f:
             return json.load(f)
@@ -143,24 +150,60 @@ class TheBrain:
         self.file_pat_formats = re.compile(r"(.png$|.jpg$|.jpeg$)", flags=re.IGNORECASE)
         # self.file_pat_formats_str_list = [".png", ".jpg", ".jpeg", ".PNG", ".JPG", ".JPEG"]
 
-    def add_labels_to_file(self, panel):
+    def set_file_or_project_history(self, _uuid=None, file_id=None):
+
+        file_history_pan_instance = isinstance(self.main_window.main_frame.rotating_pan.pan, FileHistoryPan)
+
+        # rotating pan is set to options other than file history pan
+        # call from detail_pan.__init__ - when file_history_pan is opened -> show file history
+
+        if file_history_pan_instance and _uuid:
+            file_history_pan = self.main_window.main_frame.rotating_pan
+
+            file_history_path = self.project_path.joinpath(f"history/{_uuid}")
+            if file_history_path.exists():
+                with open(file_history_path, "r") as f:
+                    file_history = json.load(f)
+
+                file_history_pan.set_file_history(file_id, file_history)
+            else:
+                file_history = ["empty list"]
+                file_history_pan.set_file_history(file_id, file_history)
+
+        elif file_history_pan_instance:
+            # todo: scan detail pan for _uuid and file_id - when label pan was opened and then we open file history pan
+            ...
+        elif isinstance(self.main_window.main_frame.rotating_pan.pan, ProjectHistoryPan):
+            project_history_pan = self.main_window.main_frame.rotating_pan
+
+            project_history_path = self.project_path.joinpath(f"history")
+
+            if project_history_path.exists():
+                with open(project_history_path, "r") as f:
+                    project_history = json.load(f)
+
+                project_history_pan.set_project_history(project_history)
+            else:
+                project_history = ["empty list"]
+                project_history_pan.set_project_history(project_history)
+
+    def add_labels_to_file(self, detail_pan):
 
         all_lbls_listbox = self.main_window.main_frame.rotating_pan.pan.all_lbls_listbox
-        detail_pan = self.main_window.main_frame.detail_pan
         file_id = detail_pan.file_id
 
-        index = all_lbls_listbox.curselection()
-        if not index:
+        indexes = all_lbls_listbox.curselection()
+        if not indexes:
             return
 
-        current_labels = panel.lbls_listbox.get(0, tk.END)
-        label_to_add = all_lbls_listbox.get(index[0])
-        if label_to_add in current_labels:
-            return
+        current_labels = detail_pan.lbls_listbox.get(0, tk.END)
+        for index in indexes:
+            label_to_add = all_lbls_listbox.get(index)
+            if label_to_add in current_labels:
+                return
+            detail_pan.lbls_listbox.insert(tk.END, label_to_add)
+            self.project["files"][file_id]["labels"].append(label_to_add)
 
-        detail_pan.lbls_listbox.insert(tk.END, label_to_add)
-
-        self.project["files"][file_id]["labels"].append(label_to_add)
         self.save_project()
 
         tree = self.main_window.main_frame.tree_pan.tree
@@ -206,20 +249,8 @@ class TheBrain:
     def open_in_new_window_pan(self, file_id: str):
         ... # and create a list with all opened windows and set changes in master and top level window?
 
-
     @log_it
-    def show_history(self, file_id: str):
-        _uuid = self.project["files"][file_id]["uuid"]
-
-        history = self.history_manager.get_history(_uuid)
-
-        if history:
-            for action, val in history.items():
-
-                ... # todo show pan
-
-    @log_it
-    def move_down(self):
+    def move_down_tree(self):
         tree = self.main_window.main_frame.tree_pan.tree
         item = tree.focus()
 
@@ -237,7 +268,7 @@ class TheBrain:
         )
 
     @log_it
-    def move_up(self):
+    def move_up_tree(self):
         tree = self.main_window.main_frame.tree_pan.tree
         item = tree.focus()
 
