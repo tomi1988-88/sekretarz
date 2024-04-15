@@ -107,7 +107,7 @@ class DetailPan(MyFrame):
         self.file_id = file_id
         self.file_data = self.master.brain.project["files"][self.file_id]
 
-        self.uuid = self.file_data["uuid"]
+        self._uuid = self.file_data["uuid"]
 
         self.source = self.file_data["source"]
         self.source_var = tk.StringVar(master=self)
@@ -389,7 +389,8 @@ class RotatingPan(MyFrame):
         self.pan.destroy()
         self.pan = FileHistoryPan(master=self)
         self.pan.grid(row=1, column=0)
-        # todo: scan detail pan to get File id -
+
+        self.master.brain.set_file_or_project_history()
 
     def project_history_pan(self):
         self.pan.destroy()
@@ -402,6 +403,7 @@ class RotatingPan(MyFrame):
         self.pan.destroy()
         self.pan = LabelPan(master=self)
         self.pan.grid(row=1, column=0)
+
 
 class LabelPan(MyFrame):
     def __init__(self, *args, **kwargs):

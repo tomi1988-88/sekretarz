@@ -123,19 +123,19 @@ def log_it(func):
     def wrapper(*args, **kwargs):
 
         try:
-            f = func(*args, **kwargs)
+            # f = func(*args, **kwargs)
             # log => went perfectly
 
             log_path = TheBrain.PROJECT_PATH.joinpath("log.log")
             with open(log_path, "a") as log_file:
-                line_to_save = f"{dt.datetime.now(): %d-%m-%Y %H:%M:%S}, {f.__name__}, {args}, {kwargs}\n"
+                line_to_save = f"{dt.datetime.now(): %d-%m-%Y %H:%M:%S}, {func.__name__}, {args}, {kwargs}\n"
                 log_file.write(line_to_save)
-        except AttributeError as e:
+        except Exception as e:
             # log error and func args
             # besides this add some logging in functions
             print(e)
 
-        return
+        return func(*args, **kwargs)
     return wrapper
 
 
@@ -170,7 +170,7 @@ class TheBrain:
         if project_history_pan_instance:
             project_history_pan = self.main_window.main_frame.rotating_pan.pan
 
-            project_history_path = self.project_path.joinpath(f"history")
+            project_history_path = self.project_path.joinpath(f"history/general_history.json")
 
             if project_history_path.exists():
                 with open(project_history_path, "r") as f:
