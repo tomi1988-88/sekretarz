@@ -198,7 +198,6 @@ class DetailPan(MyFrame):
         MyButton(master=self.frame_lbls_btns, text="Move up", command=self.remove_labels).grid(row=3, column=0)
         MyButton(master=self.frame_lbls_btns, text="Move down", command=self.remove_labels).grid(row=4, column=0, sticky=tk.N)
 
-
         MyLabel(master=self, text=LANG.get("comment")).grid(row=5, column=0)
 
         self.tbox_com = scrolledtext.ScrolledText(master=self, height=4)
@@ -244,7 +243,7 @@ class DetailPan(MyFrame):
         self.master.brain.move_up_tree()
 
     def open_in_new_window_pan(self):
-        self.master.brain.open_in_new_window_pan
+        self.master.brain.open_in_new_window_pan()
 
     def open_in_default_viewer(self):
         self.master.brain.open_in_default_viewer(self.path)
@@ -280,8 +279,6 @@ class DetailPan(MyFrame):
         if not n_name.endswith(pathlib.Path(self.path).suffix):
             messagebox.showerror(master=self, title=LANG.get("f_rename"), message=LANG.get("f_name_wrong_suffix"))
             return
-
-        print(n_name, self.f_name)
 
         if n_name != self.f_name:
             res = messagebox.askyesno(master=self, title=LANG.get("f_rename"), message=LANG.get("f_rename"))
@@ -344,11 +341,15 @@ class DetailPan(MyFrame):
         else:
             messagebox.showerror(master=self, title=LANG.get("s_rename"), message=LANG.get("same_source"))
 
-    def go_to_source(self):
-        ...
-
     def remove_labels(self):
-        ...
+        indexes = self.lbls_listbox.curselection()
+        if indexes:
+            lables_to_remove = [self.lbls_listbox.get(index) for index in indexes]
+            (self.lbls_listbox.delete(index) for index in indexes)
+
+            self.labels = [label for label in self.labels if label not in lables_to_remove]
+
+            self.master.brain.remove_file_labels(self.file_id, self.labels)
 
     def alter_comment(self):
         comment = self.tbox_com.get("1.0", tk.END)[:-1]
@@ -529,7 +530,7 @@ class ProjectHistoryPan(MyFrame):
 
     def set_project_history(self, project_history):
         self.history_listbox.delete(0, tk.END)
-        self.history_listbox.insert(tk.END, *file_history)
+        self.history_listbox.insert(tk.END, *project_history)
 
 
 class FileHistoryPan(MyFrame):

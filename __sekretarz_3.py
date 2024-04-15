@@ -121,23 +121,28 @@ class LangVariables:
 
 def log_it(func):
     def wrapper(*args, **kwargs):
-        if TheBrain.LOG_IT:
-            try:
-                log_path = TheBrain.PROJECT_PATH.joinpath("log.log")
-                with open(log_path, "a") as log_file:
-                    line_to_save = f"{dt.datetime.now(): %d-%m-%Y %H:%M:%S}, {func.__name__}, {args}, {kwargs}\n"
-                    log_file.write(line_to_save)
-            except AttributeError as e:
-                print(e)
 
-        return func(*args, **kwargs)
+        try:
+            f = func(*args, **kwargs)
+            # log => went perfectly
+
+            log_path = TheBrain.PROJECT_PATH.joinpath("log.log")
+            with open(log_path, "a") as log_file:
+                line_to_save = f"{dt.datetime.now(): %d-%m-%Y %H:%M:%S}, {f.__name__}, {args}, {kwargs}\n"
+                log_file.write(line_to_save)
+        except AttributeError as e:
+            # log error and func args
+            # besides this add some logging in functions
+            print(e)
+
+        return
     return wrapper
 
 
 class TheBrain:
 
-    PROJECT_PATH = None
-    LOG_IT = True
+    PROJECT_PATH = None # del it?
+    LOG_IT = True # del it?
 
     def __init__(self, main_window, *args, **kwargs):
         self.main_window = main_window
@@ -150,12 +155,17 @@ class TheBrain:
         self.file_pat_formats = re.compile(r"(.png$|.jpg$|.jpeg$)", flags=re.IGNORECASE)
         # self.file_pat_formats_str_list = [".png", ".jpg", ".jpeg", ".PNG", ".JPG", ".JPEG"]
 
+    def remove_file_labels(self, file_id: str, labels: List):
+        self.project["files"][file_id]["labels"] = labels
+
+        self.save_project()
+
     def set_file_or_project_history(self):
         """Called from DetailPan.__init__, RotatingPan buttons: command=self.file_history_pan; command=self.project_history_pan
         """
         project_history_pan_instance = isinstance(self.main_window.main_frame.rotating_pan.pan, ProjectHistoryPan)
         file_history_pan_instance = isinstance(self.main_window.main_frame.rotating_pan.pan, FileHistoryPan)
-        detail_pan_instence = isinstance(self.main_window.main_frame.detail_pan, DetailPan)
+        detail_pan_instance = isinstance(self.main_window.main_frame.detail_pan, DetailPan)
 
         if project_history_pan_instance:
             project_history_pan = self.main_window.main_frame.rotating_pan.pan
