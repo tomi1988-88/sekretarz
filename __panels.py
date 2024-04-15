@@ -232,7 +232,7 @@ class DetailPan(MyFrame):
         lbl_ctime = MyLabel(master=self, text=c_time, width=100)
         lbl_ctime.grid(row=7, column=1)
 
-        self.master.brain.set_file_or_project_history(self.uuid, self.file_id)
+        self.master.brain.set_file_or_project_history()
 
     def add_labels_to_file(self):
         self.master.brain.add_labels_to_file(self)
@@ -501,7 +501,6 @@ class LabelPan(MyFrame):
             self.all_lbls_listbox.delete(index)
             self.master.master.brain.delete_label(label)
             
-  
     def add_label_to_project(self):
         dialog = MyInputDialog(text="Type in a new label name:", title="Add Label to the Project")
         new_label = dialog.get_input()
@@ -528,8 +527,10 @@ class ProjectHistoryPan(MyFrame):
         self.history_listbox = MyListbox(master=self)
         self.history_listbox.grid(row=1, column=0)
 
-    def __class__(self):
-        return "ProjectHistoryPan"
+    def set_project_history(self, project_history):
+        self.history_listbox.delete(0, tk.END)
+        self.history_listbox.insert(tk.END, *file_history)
+
 
 class FileHistoryPan(MyFrame):
     def __init__(self, *args, **kwargs):
@@ -555,8 +556,5 @@ class FileHistoryPan(MyFrame):
         self.file_id_var.set(file_id)
 
         self.history_listbox.delete(0, tk.END)
-
         self.history_listbox.insert(tk.END, *file_history)
 
-    def __class__(self):
-        return "FileHistoryPan"
