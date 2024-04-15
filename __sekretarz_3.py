@@ -92,7 +92,7 @@ class HistoryManager:
         project_path.joinpath("history").mkdir()
 
     def create_general_history_file(self, project_path: pathlib.Path):
-        with open(self.brain.project_path.joinpath(f"history/general_history.json"), mode="w") as f: # todo: sth went wrong
+        with open(self.brain.project_path.joinpath(f"history/general_history.json"), mode="w") as f: 
             general_history_file = dict()
             json.dump(general_history_file, f, indent=4)
   
@@ -105,7 +105,7 @@ class HistoryManager:
             return json.load(f)
 
     def save_history_file(self, _uuid_or_general: str, h_file: Dict):
-        with open(self.brain.project_path.joinpath(f"history/{_uuid_or_general}.json"), mode="w") as f: # todo: sth went wrong
+        with open(self.brain.project_path.joinpath(f"history/{_uuid_or_general}.json"), mode="w") as f: 
             json.dump(h_file, f, indent=4)
 
 class TempLayer:
@@ -150,31 +150,15 @@ class TheBrain:
         self.file_pat_formats = re.compile(r"(.png$|.jpg$|.jpeg$)", flags=re.IGNORECASE)
         # self.file_pat_formats_str_list = [".png", ".jpg", ".jpeg", ".PNG", ".JPG", ".JPEG"]
 
-    def set_file_or_project_history(self, _uuid=None, file_id=None):
-
+    def set_file_or_project_history(self):
+        """Called from DetailPan.__init__, RotatingPan buttons: command=self.file_history_pan; command=self.project_history_pan
+        """
+        project_history_pan_instance = isinstance(self.main_window.main_frame.rotating_pan.pan, ProjectHistoryPan)
         file_history_pan_instance = isinstance(self.main_window.main_frame.rotating_pan.pan, FileHistoryPan)
+        detail_pan_instence = isinstance(self.main_window.main_frame.detail_pan, DetailPan)
 
-        # rotating pan is set to options other than file history pan
-        # call from detail_pan.__init__ - when file_history_pan is opened -> show file history
-
-        if file_history_pan_instance and _uuid:
-            file_history_pan = self.main_window.main_frame.rotating_pan
-
-            file_history_path = self.project_path.joinpath(f"history/{_uuid}")
-            if file_history_path.exists():
-                with open(file_history_path, "r") as f:
-                    file_history = json.load(f)
-
-                file_history_pan.set_file_history(file_id, file_history)
-            else:
-                file_history = ["empty list"]
-                file_history_pan.set_file_history(file_id, file_history)
-
-        elif file_history_pan_instance:
-            # todo: scan detail pan for _uuid and file_id - when label pan was opened and then we open file history pan
-            ...
-        elif isinstance(self.main_window.main_frame.rotating_pan.pan, ProjectHistoryPan):
-            project_history_pan = self.main_window.main_frame.rotating_pan
+        if project_history_pan_instance:
+            project_history_pan = self.main_window.main_frame.rotating_pan.pan
 
             project_history_path = self.project_path.joinpath(f"history")
 
@@ -186,7 +170,24 @@ class TheBrain:
             else:
                 project_history = ["empty list"]
                 project_history_pan.set_project_history(project_history)
+              
+        elif detail_pan_instance and file_history_pan_instance:
+            file_history_pan = self.main_window.main_frame.rotating_pan.pan
+            detail_pan = self.main_window.main_frame.detail_pan
 
+            _uuid = detail_pan._uuid
+            file_id = detail_pan.file_id
+          
+            file_history_path = self.project_path.joinpath(f"history/{_uuid}")
+            if file_history_path.exists():
+                with open(file_history_path, "r") as f:
+                    file_history = json.load(f)
+
+                file_history_pan.set_file_history(file_id, file_history)
+            else:
+                file_history = ["empty list"]
+                file_history_pan.set_file_history(file_id, file_history)
+          
     def add_labels_to_file(self, detail_pan):
 
         all_lbls_listbox = self.main_window.main_frame.rotating_pan.pan.all_lbls_listbox
@@ -416,8 +417,8 @@ class TheBrain:
             if not res:
                 return
 
-        if self.__check_circular_reference(d_with_files_path): # todo: check once agian sth is wrong
-            return  # current cwd is venv/python
+        if self.__check_circular_reference(d_with_files_path): 
+            return  
 
         target_dir = pathlib.Path(self.project_path, d_with_files_path.stem)
 
@@ -539,12 +540,12 @@ class TheBrain:
         self.project = self.load_project()
 
         self.main_window.main_frame.destroy()
-        self.main_window.main_frame = BaseProjectView(master=self.main_window) # todo
+        self.main_window.main_frame = BaseProjectView(master=self.main_window)
 
     @log_it
     def go_back_to_main_menu_or_base_pro_view(self):
         if self.project_path:
-            self.go_to_base_project_view(self.project_path) # todo: if temp_layer load from temp layer
+            self.go_to_base_project_view(self.project_path) 
         else:
             self.main_menu_view()
 
@@ -639,20 +640,6 @@ class TheBrain:
         self.main_window.main_frame.detail_pan = DetailPan(master=self.main_window.main_frame, file_id=file_id)
         self.main_window.main_frame.detail_pan.grid(row=1, column=0)
 
-        # try:
-        #     self.main_window.main_frame.detail_pan = DetailPan(master=self.main_window.main_frame, file_id=file_id)
-        #     self.main_window.main_frame.detail_pan.grid(row=1, column=0)
-        # except tk.TclError:
-        #     return
-        # except KeyError:
-        #     return
-        #
-        #     # self.driver.detail_view = DetailPan(master=self.driver.detail_pan, driver=self.driver,
-        #     #                                     item_index=item_index, file_id=file_id)
-        #     # todo: ZoomPan
-        #     self.master.brain.mount_detail_and_zoom_pan(file_id=file_id, path_to_screen=path_to_screen)
-        #     self.driver.zoom_view = ZoomPan(master=self.driver.right_pan, path=path_to_screen)
-
         self.collect_garbage()
 
 class AddFilesFromDirView(MyFrame):
@@ -711,7 +698,6 @@ class AddFilesFromDirView(MyFrame):
         self.master.brain.add_files_from_dir(self.d_path.get(), self.all_or_some_files_var.get())
 
 
-
 class MenuBar(MyMenu):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -730,7 +716,7 @@ class MenuBar(MyMenu):
         # MyButton(master=self.menu, text="Settings", command=self.settings).grid()
         # MyButton(master=self.menu, text=LANG.get("quit"), command=self.close).grid()
 
-        self.add_command(label="Add files to project", command=self.add_files_from_dir_view, state=tk.DISABLED)  # todo : del or activate/deactivate - currently not necessary
+        self.add_command(label="Add files to project", command=self.add_files_from_dir_view, state=tk.DISABLED) 
 
     def enable_buttons(self):
         self.entryconfigure("Add files to project", state=tk.NORMAL)
