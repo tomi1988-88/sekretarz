@@ -141,7 +141,7 @@ def log_it(func):
 
 class TheBrain:
 
-    PROJECT_PATH = None # del it?
+    PROJECT_PATH = None # del it? # create singleton
     LOG_IT = True # del it?
 
     def __init__(self, main_window, *args, **kwargs):
