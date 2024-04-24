@@ -33,8 +33,12 @@ from __panels import (TreePan,
                       ProjectHistoryPan)
 from typing import (List,
                     Dict)
+from my_logger import (my_logger,
+                       log_it,
+                       log_it_methods_decorator)
 
 
+@log_it_methods_decorator(log_it)
 class HistoryManager:
     """"""
     def __init__(self, brain, *args, **kwargs):
@@ -114,35 +118,17 @@ class TempLayer:
         # temp_layer.curr_widget = base pro view which is not displayed in main window?
         # class TempLayer(MyFrame)
 
+
 class LangVariables:
     def __init__(self, *args, **kwargs):
         ...
 
 
-def log_it(func):
-    def wrapper(*args, **kwargs):
-
-        try:
-            # f = func(*args, **kwargs)
-            # log => went perfectly
-
-            log_path = TheBrain.PROJECT_PATH.joinpath("log.log")
-            with open(log_path, "a") as log_file:
-                line_to_save = f"{dt.datetime.now(): %d-%m-%Y %H:%M:%S}, {func.__name__}, {args}, {kwargs}\n"
-                log_file.write(line_to_save)
-        except Exception as e:
-            # log error and func args
-            # besides this add some logging in functions
-            print(e)
-
-        return func(*args, **kwargs)
-    return wrapper
-
-
+@log_it_methods_decorator(log_it)
 class TheBrain:
 
-    PROJECT_PATH = None # del it? # create singleton
-    LOG_IT = True # del it?
+    # PROJECT_PATH = None # del it? # create singleton
+    # LOG_IT = True # del it?
 
     def __init__(self, main_window, *args, **kwargs):
         self.main_window = main_window
@@ -153,6 +139,7 @@ class TheBrain:
         self.history_manager = HistoryManager(brain=self)
         self.temp_layer = TempLayer()
         self.file_pat_formats = re.compile(r"(.png$|.jpg$|.jpeg$)", flags=re.IGNORECASE)
+
         # self.file_pat_formats_str_list = [".png", ".jpg", ".jpeg", ".PNG", ".JPG", ".JPEG"]
 
     def remove_file_labels(self, file_id: str, labels: List):
@@ -256,11 +243,9 @@ class TheBrain:
         self.project["labels"].append(new_label)
         self.save_project()
 
-    @log_it
     def open_in_new_window_pan(self, file_id: str):
         ... # and create a list with all opened windows and set changes in master and top level window?
 
-    @log_it
     def move_down_tree(self):
         tree = self.main_window.main_frame.tree_pan.tree
         item = tree.focus()
@@ -278,7 +263,6 @@ class TheBrain:
             tree.index(item) + 1
         )
 
-    @log_it
     def move_up_tree(self):
         tree = self.main_window.main_frame.tree_pan.tree
         item = tree.focus()
@@ -296,7 +280,6 @@ class TheBrain:
             tree.index(item) - 1
         )
 
-    @log_it
     def open_in_default_viewer(self, path: pathlib.Path):
         path = self.project_path.joinpath(path)
         try:
@@ -306,21 +289,17 @@ class TheBrain:
         except PermissionError:
             pass
 
-    @log_it
     def open_source_in_browser(self, src: str):
         webbrowser.open(src, new=2)
 
-    @log_it
     def open_in_new_browser(self, path: pathlib.Path):
         path = self.project_path.joinpath(path)
         webbrowser.open(str(path), new=2)
 
-    @log_it
     def alter_comment(self, file_id, comment):
         self.project["files"][file_id]["comment"] = comment
         self.save_project()
 
-    @log_it
     def rename_file(self, old_name, file_id_new_name, file_data):
         self.project["files"][file_id_new_name] = file_data
 
@@ -359,7 +338,6 @@ class TheBrain:
             old_name
         )
 
-    @log_it
     def rename_source(self, file_id, old_source, path, labels,c_time, new_src):
         self.project["files"][file_id]["source"] = new_src
 
@@ -386,7 +364,6 @@ class TheBrain:
             old_source
         )
 
-    @log_it
     def del_file(self, file_id):
         self.history_manager.del_file(file_id)
 
@@ -395,16 +372,13 @@ class TheBrain:
 
         self.main_window.main_frame.tree_pan.tree.delete(file_id)
 
-    @log_it
     def add_files_from_dir_view(self):
         self.main_window.main_frame.destroy()
         self.main_window.main_frame = AddFilesFromDirView(master=self.main_window)
 
-    @log_it
     def __add_files_from_dir__ignore_patterns(self, path, names):
         return [f for f in names if pathlib.Path(path, f).is_file() and not self.file_pat_formats.search(f)]
 
-    @log_it
     def __check_circular_reference(self, d_with_files_path):
         project_path = str(self.project_path)
         d_with_files_path = str(d_with_files_path)
@@ -413,7 +387,6 @@ class TheBrain:
                 messagebox.showerror(title="Circular reference", message="A circular reference spotted: You tried to add to the project a directory that contains this project")
                 return True
 
-    @log_it
     def add_files_from_dir(self, path, all_or_some_files_var):
         d_with_files_path = pathlib.Path(path)
 
@@ -484,7 +457,6 @@ class TheBrain:
 
             self.collect_garbage()
 
-    @log_it
     def create_project(self, project_path: pathlib.Path):
         self.project_path = project_path
         try:
@@ -539,9 +511,6 @@ class TheBrain:
       
         self.go_to_base_project_view(self.project_path)
 
-        TheBrain.PROJECT_PATH = self.project_path
-
-    @log_it
     def go_to_base_project_view(self, project_path: pathlib.Path):
         self.project_path = project_path
 
@@ -552,25 +521,21 @@ class TheBrain:
         self.main_window.main_frame.destroy()
         self.main_window.main_frame = BaseProjectView(master=self.main_window)
 
-    @log_it
     def go_back_to_main_menu_or_base_pro_view(self):
         if self.project_path:
             self.go_to_base_project_view(self.project_path) 
         else:
             self.main_menu_view()
 
-    @log_it
     def load_project(self):
         with open(self.project_path.joinpath("base.json"), mode="r") as f:
             self.project = json.load(f)
         return self.project
 
-    @log_it
     def save_project(self):
         with open(self.project_path.joinpath("base.json"), mode="w") as file:
             json.dump(self.project, file, indent=4)
 
-    @log_it
     def add_project_to_list_of_projects(self):
         cwd_path = pathlib.Path(os.getcwd())
         check_if_project_list_exists = cwd_path.joinpath("projects_list.json").exists()
@@ -584,7 +549,6 @@ class TheBrain:
         with open(cwd_path.joinpath("projects_list.json"), mode="w") as file:
             json.dump(projects_list, file, indent=4)
 
-    @log_it
     def load_list_of_projects(self):
         cwd_path = pathlib.Path(os.getcwd())
         check_if_project_list_exists = cwd_path.joinpath("projects_list.json").exists()
@@ -594,41 +558,33 @@ class TheBrain:
             return projects_list["projects"]
         return []
 
-    @log_it
     def settings_view(self):
         # lang, dark - light view mode
         ...
 
-    @log_it
     def open_project_view(self):
         self.main_window.main_frame.destroy()
         projects_list = self.load_list_of_projects()
         self.main_window.main_frame = OpenProjectView(master=self.main_window, projects_list=projects_list)
 
-    @log_it
     def new_project_view(self):
         self.main_window.main_frame.destroy()
         self.main_window.main_frame = NewProjectView(master=self.main_window)
 
-    @log_it
     def main_menu_view(self):
         self.main_window.main_frame.destroy()
         self.main_window.main_frame = MainMenuView(master=self.main_window)
 
-    @log_it
     def collect_garbage(self):
         gc.collect()
 
-    @log_it
     def clear_detail_and_zoom_pan(self):
         self.main_window.main_frame.zoom_pan.destroy()
         self.main_window.main_frame.detail_pan.destroy()
 
-    @log_it
     def enable_menubar_btns(self):
         self.main_window.menu_bar.enable_buttons()
 
-    @log_it
     def mount_detail_and_zoom_pan(self, file_id):
 
         path_to_img = self.project["files"][file_id]["path"]
@@ -791,7 +747,7 @@ class MainWindow(ctk.CTk):
         ctk.set_appearance_mode("dark")
         gc.disable()
 
-        self.brain = TheBrain(self)
+        self.brain = TheBrain(main_window=self)
 
         self.menu_bar = MenuBar(master=self)
         self.config(menu=self.menu_bar)
