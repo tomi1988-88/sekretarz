@@ -112,6 +112,8 @@ class HistoryManager:
         with open(self.brain.project_path.joinpath(f"history/{_uuid_or_general}.json"), mode="w") as f: 
             json.dump(h_file, f, indent=4)
 
+    def __name__
+
 class TempLayer:
     def __init__(self, *args, **kwargs):
         ... # todo: maybe it might work as a variable storage for the whole base view eg:
