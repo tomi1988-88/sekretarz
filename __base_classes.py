@@ -27,6 +27,7 @@ class MyEntry(ctk.CTkEntry):
         super().__init__(*args, **kwargs)
         # self.configure(pady=5, padx=10)
 
+
 class MyListbox(tk.Listbox):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -65,9 +66,11 @@ class MyTopLevel(ctk.CTkToplevel):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
+
 class MyInputDialog(ctk.CTkInputDialog):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
+
 
 class MyMenu(tk.Menu):
     def __init__(self, *args, **kwargs):

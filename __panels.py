@@ -17,7 +17,12 @@ from __base_classes import (MyFrame,
                             MyInputDialog)
 from __sekretarz_lang import LANG
 from __zoomed_canvas import ZoomAdvanced
+from my_logger import (my_logger,
+                       log_exception,
+                       log_exception_decorator)
 
+
+@log_exception_decorator(log_exception)
 class TreePan(MyFrame):
     def __init__(self, *args, **kwargs):
         super(TreePan, self).__init__(*args, **kwargs)
@@ -52,6 +57,7 @@ class TreePan(MyFrame):
 
         # self.project = self.nametowidget(".").project
         self.populate()
+        my_logger.info("TreePan initiated")
 
     def populate(self):
         """Important note: tree iids = file_ids"""
@@ -81,6 +87,7 @@ class TreePan(MyFrame):
         self.master.brain.mount_detail_and_zoom_pan(file_id=item_index)
 
 
+@log_exception_decorator(log_exception)
 class ZoomPan(MyFrame):
     def __init__(self, path_to_img=None, *args, **kwargs):
         super(ZoomPan, self).__init__(*args, **kwargs)
@@ -92,6 +99,7 @@ class ZoomPan(MyFrame):
         self.zoom.grid(sticky=tk.NSEW)
 
 
+@log_exception_decorator(log_exception)
 class DetailPan(MyFrame):
     def __init__(self, file_id, *args, **kwargs):
 
@@ -363,6 +371,8 @@ class DetailPan(MyFrame):
             messagebox.showerror(master=self, title=LANG.get("alter_comment"), message=LANG.get("same_comment"))
 
 
+
+@log_exception_decorator(log_exception)
 class RotatingPan(MyFrame):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -405,6 +415,7 @@ class RotatingPan(MyFrame):
         self.pan.grid(row=1, column=0)
 
 
+@log_exception_decorator(log_exception)
 class LabelPan(MyFrame):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -516,6 +527,7 @@ class LabelPan(MyFrame):
         self.master.master.brain.add_label_to_project(new_label)
 
 
+@log_exception_decorator(log_exception)
 class ProjectHistoryPan(MyFrame):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -535,6 +547,7 @@ class ProjectHistoryPan(MyFrame):
         self.history_listbox.insert(tk.END, *project_history)
 
 
+@log_exception_decorator(log_exception)
 class FileHistoryPan(MyFrame):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)

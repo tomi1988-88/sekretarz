@@ -34,11 +34,11 @@ from __panels import (TreePan,
 from typing import (List,
                     Dict)
 from my_logger import (my_logger,
-                       log_it,
-                       log_it_methods_decorator)
+                       log_exception,
+                       log_exception_decorator)
 
 
-@log_it_methods_decorator(log_it)
+@log_exception_decorator(log_exception)
 class HistoryManager:
     """"""
     def __init__(self, brain, *args, **kwargs):
@@ -112,7 +112,7 @@ class HistoryManager:
         with open(self.brain.project_path.joinpath(f"history/{_uuid_or_general}.json"), mode="w") as f: 
             json.dump(h_file, f, indent=4)
 
-    def __name__
+
 
 class TempLayer:
     def __init__(self, *args, **kwargs):
@@ -126,7 +126,7 @@ class LangVariables:
         ...
 
 
-@log_it_methods_decorator(log_it)
+@log_exception_decorator(log_exception)
 class TheBrain:
 
     # PROJECT_PATH = None # del it? # create singleton
@@ -610,6 +610,8 @@ class TheBrain:
 
         self.collect_garbage()
 
+
+@log_exception_decorator(log_exception)
 class AddFilesFromDirView(MyFrame):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -666,6 +668,7 @@ class AddFilesFromDirView(MyFrame):
         self.master.brain.add_files_from_dir(self.d_path.get(), self.all_or_some_files_var.get())
 
 
+@log_exception_decorator(log_exception)
 class MenuBar(MyMenu):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -705,6 +708,8 @@ class MenuBar(MyMenu):
         self.destroy()
         self.master.destroy()
 
+
+@log_exception_decorator(log_exception)
 class BaseProjectView(MyFrame):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -735,7 +740,7 @@ class BaseProjectView(MyFrame):
         self.rotating_pan.grid(row=1, column=1)
 
 
-
+@log_exception_decorator(log_exception)
 class MainWindow(ctk.CTk):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -760,6 +765,7 @@ class MainWindow(ctk.CTk):
     #     self.main_frame.destroy()
 
 
+@log_exception_decorator(log_exception)
 class OpenProjectView(MyFrame):
     def __init__(self, projects_list=None, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -815,6 +821,7 @@ class OpenProjectView(MyFrame):
             messagebox.showerror(title="Wrong directory", message="A directory must contain base.json file to be 'a project'. Selected folder does not include base.json file.")
 
 
+@log_exception_decorator(log_exception)
 class NewProjectView(MyFrame):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -856,6 +863,7 @@ class NewProjectView(MyFrame):
                                             # go back to base pro view (keep the same view -> load from Temp_layer?
 
 
+@log_exception_decorator(log_exception)
 class MainMenuView(MyFrame):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)

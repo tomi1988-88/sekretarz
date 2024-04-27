@@ -5,7 +5,7 @@ import os
 
 dir_log = f"{os.getcwd()}/log.log"
 
-my_config = {
+my_config_python_3_12= {
     "version": 1,
     "disable_existing_loggers": False,
     # "filters": {},
@@ -42,7 +42,7 @@ my_config = {
     }
 }
 
-my_config = {
+my_config_python_3_11 = {
     "version": 1,
     "disable_existing_loggers": False,
     # "filters": {},
@@ -73,29 +73,26 @@ my_config = {
 }
 
 my_logger = logging.getLogger("my_logger")
-logging.config.dictConfig(my_config)
-# queue_handler = logging.getHandlerByName("queue_handler")
+logging.config.dictConfig(my_config_python_3_11)
+# queue_handler = logging.getHandlerByName("queue_handler")  # add if my_config_python_3_12
 # if queue_handler:
 #     queue_handler.listener.start()
 #     atexit.register(queue_handler.listener.stop())
 
 
-def log_it(func):
+def log_exception(func_or_class):
     def wrapper(*args, **kwargs):
         try:
-            f = func(*args, **kwargs)
-            my_logger.info(f"{f.__name__}, {args}, {kwargs}, - OK" )    # "Hello, %s. You are %s." % (name, age)
+            return func_or_class(*args, **kwargs)
         except Exception as e:
             my_logger.exception(e)
-            # print(os.getcwd())
-        return f
     return wrapper
 
 
-def log_it_methods_decorator(decorator):
+def log_exception_decorator(decorator):
     def decorate(cls):
-        for attr in cls.__dict__: # there's propably a better way to do this
-            if callable(getattr(cls, attr)): # wywalić stąd, że hasattrib
+        for attr in cls.__dict__:  # there's propably a better way to do this
+            if callable(getattr(cls, attr)):
                 setattr(cls, attr, decorator(getattr(cls, attr)))
         return cls
     return decorate
