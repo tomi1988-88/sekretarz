@@ -41,18 +41,18 @@ from my_logger import (my_logger,
 @log_exception_decorator(log_exception)
 class HistoryManager:
     """"""
-    def __init__(self, brain, *args, **kwargs):
+    def __init__(self, brain, *args, **kwargs) -> None:
         self.brain = brain
 
-    def del_file(self, file_id: str):
+    def del_file(self, file_id: str) -> None:
         self.brain.project["del_files"][file_id] = copy.deepcopy(self.brain.project["files"][file_id])
 
         del self.brain.project["files"][file_id]
 
-    def del_file_definietly(self):
+    def del_file_definietly(self) -> None:
         ...
 
-    def save_previous_state(self, _uuid: str, key: str, value: Dict): # should be done with try/except or dict?
+    def save_previous_state(self, _uuid: str, key: str, value: Dict) -> None: # should be done with try/except or dict?
         time_record = str(int(dt.datetime.today().timestamp()))
 
         if self.check_if_history_file_exists(_uuid):
@@ -69,7 +69,7 @@ class HistoryManager:
             self.save_history_file(_uuid, h_data)
             self.save_to_general_history(_uuid, key, value, time_record)
 
-    def save_to_general_history(self, _uuid_or_project: str, key: str, value: Dict, time_record=None):
+    def save_to_general_history(self, _uuid_or_project: str, key: str, value: Dict, time_record=None) -> None:
         time_record = time_record if time_record else str(int(dt.datetime.today().timestamp()))
 
         gh_data = json.load_history_file('general_history')
@@ -77,10 +77,10 @@ class HistoryManager:
 
         self.save_history_file('general_history', gh_data)
 
-    def restore_previous_state(self):
+    def restore_previous_state(self) -> None:
         ...
 
-    def get_history(self, _uuid: str):
+    def get_history(self, _uuid: str) -> Dict:
         history_dir = self.brain.project_path.joinpath('history')
         files = [x.stem for x in history_dir.iterdir()]
         if _uuid in files:
@@ -88,11 +88,11 @@ class HistoryManager:
             with open(f_path, "r") as f:
                 return json.load(f)
 
-    def get_general_history(self):
+    def get_general_history(self) -> Dict:
         with open(self.brain.project_path.joinpath('history\general_history.json'), mode="r") as f:
             return json.load(f)
   
-    def create_history_dir(self, project_path: pathlib.Path):
+    def create_history_dir(self, project_path: pathlib.Path) -> None:
         project_path.joinpath("history").mkdir()
 
     def create_general_history_file(self, project_path: pathlib.Path):
@@ -100,15 +100,15 @@ class HistoryManager:
             general_history_file = dict()
             json.dump(general_history_file, f, indent=4)
   
-    def check_if_history_file_exists(self, _uuid: str):
+    def check_if_history_file_exists(self, _uuid: str) -> Bool:
         hd_path = self.brain.project_path.joinpath(f"history/{_uuid}.json")
         return hd_path.exists()
 
-    def load_history_file(self, _uuid_or_general: str):
+    def load_history_file(self, _uuid_or_general: str) -> Dict:
         with open(self.brain.project_path.joinpath(f"history/{_uuid_or_general}.json"), mode="r") as f:
             return json.load(f)
 
-    def save_history_file(self, _uuid_or_general: str, h_file: Dict):
+    def save_history_file(self, _uuid_or_general: str, h_file: Dict) -> None:
         with open(self.brain.project_path.joinpath(f"history/{_uuid_or_general}.json"), mode="w") as f: 
             json.dump(h_file, f, indent=4)
 
@@ -309,6 +309,8 @@ class TheBrain:
         self.save_project()
 
     def rename_file(self, old_name, file_id_new_name, file_data) -> None:
+        my_logger.debug(f"TheBrain.rename_file({old_name}, {file_id_new_name}, {file_data})")
+        
         self.project["files"][file_id_new_name] = file_data
 
         del self.project["files"][old_name]
@@ -467,7 +469,7 @@ class TheBrain:
 
     def create_project(self, project_path: pathlib.Path) -> None:
         """Creates a base project file in json format.
-        Automaticly adds the project to a list of projects and creates base history files
+        Automatically adds the project to a list of projects and creates base history files
         """
         self.project_path = project_path
         try:
@@ -476,25 +478,25 @@ class TheBrain:
             check_base_file_path = self.project_path.joinpath("base.json").exists()
             if check_base_file_path:
                 messagebox.showerror(title="Project already created in that location.", message="Delete an existing project in that location and then set a new one.")
-                my_logger(f"Project {self.project_path} already created in that location.")
+                my_logger.debug(f"TheBrain.create_project: Project {self.project_path} already created in that location.")
                 return
 
             check_is_dir = self.project_path.is_dir()
             if check_is_dir:
                 res = messagebox.askyesno(title="Path exists.", message="Do you want to create a project in that location?")
-                my_logger(f"Path exists: {self.project_path} ")
+                my_logger.debug(f"TheBrain.create_project: Path exists: {self.project_path} ")
                 if not res:
-                    my_logger(f"Path declined: {self.project_path} ")
+                    my_logger.debug(f"TheBrain.create_project: Path declined: {self.project_path} ")
                     return
-                my_logger(f"Path accepted: {self.project_path} ")
+                my_logger.debug(f"TheBrain.create_project: Path accepted: {self.project_path} ")
             else:
                 messagebox.showerror(title="Choose a path to a directory.", message="A chosen path leads to a file not to a directory.")
-                my_logger(f"Path leads to a file: {self.project_path} ")
+                my_logger.debug(f"TheBrain.create_project: Path leads to a file: {self.project_path} ")
                 return
 
         except OSError:
             messagebox.showerror(title="Wrong path.", message="Wrong path name. Some characters might be not allowed (check: < > : \" / \\ | ? *).")
-            my_logger(f"Wrong path: {self.project_path}")
+            my_logger.debug(f"TheBrain.create_project: Wrong path: {self.project_path}")
             return
 
         project_name = self.project_path.name
@@ -521,17 +523,19 @@ class TheBrain:
         # if a history dir still exists after manual del of a project
         self.history_manager.create_general_history_file(self.project_path)
 
-        my_logger(f"Project {self.project_path} created successfully")
+        my_logger.debug(f"TheBrain.create_project: Project {self.project_path} created successfully")
+        my_logger.debug(f"TheBrain.create_project: Go to go_to_base_project_view(self.project_path)")
       
         self.go_to_base_project_view(self.project_path)
 
     def go_to_base_project_view(self, project_path: pathlib.Path)  -> None:
+        """Prepares TheBrain to service a project"""
         self.project_path = project_path
-
-        TheBrain.PROJECT_PATH = self.project_path
-
+        my_logger.debug(f"TheBrain.go_to_base_project_view: {self.project_path} ready to load")
+        
         self.project = self.load_project()
-
+        my_logger.debug(f"TheBrain.go_to_base_project_view: {self.project_path} loaded successfully")
+        
         self.main_window.main_frame.destroy()
         self.main_window.main_frame = BaseProjectView(master=self.main_window)
 
@@ -544,11 +548,13 @@ class TheBrain:
     def load_project(self) -> Dict:
         with open(self.project_path.joinpath("base.json"), mode="r") as f:
             self.project = json.load(f)
+        my_logger.debug(f"TheBrain.load_project(): {self.project_path} loaded successfully")
         return self.project
 
     def save_project(self) -> None:
         with open(self.project_path.joinpath("base.json"), mode="w") as file:
             json.dump(self.project, file, indent=4)
+        my_logger.debug(f"TheBrain.save_project(): {self.project_path} saved successfully")
 
     def add_project_to_list_of_projects(self) -> None:
         cwd_path = pathlib.Path(os.getcwd())
@@ -557,11 +563,16 @@ class TheBrain:
             with open(cwd_path.joinpath("projects_list.json"), mode="r") as file:
                 projects_list = json.load(file)
             projects_list["projects"].append(str(self.project_path))
+            my_logger.debug(f"TheBrain.add_project_to_list_of_projects: List of projects is going to be updated: {cwd_path.joinpath("projects_list.json")}")
+            
         else:
             projects_list = {"projects": [str(self.project_path)]}
+            my_logger.debug(f"TheBrain.add_project_to_list_of_projects: List of projects is going to be created: {cwd_path.joinpath("projects_list.json")}")
 
         with open(cwd_path.joinpath("projects_list.json"), mode="w") as file:
             json.dump(projects_list, file, indent=4)
+
+        my_logger.debug(f"TheBrain.add_project_to_list_of_projects: List of projects created/updated: {cwd_path.joinpath("projects_list.json")}")
 
     def load_list_of_projects(self) -> List:
         cwd_path = pathlib.Path(os.getcwd())
@@ -569,73 +580,91 @@ class TheBrain:
         if check_if_project_list_exists:
             with open(cwd_path.joinpath("projects_list.json"), mode="r") as file:
                 projects_list = json.load(file)
+                
+            my_logger.debug(f"TheBrain.add_project_to_list_of_projects: List of projects loaded: {cwd_path.joinpath("projects_list.json")}")
             return projects_list["projects"]
+        my_logger.debug(f"TheBrain.add_project_to_list_of_projects: List of projects does not exist: {cwd_path.joinpath("projects_list.json")}")
         return []
 
     def settings_view(self):
         """Called by MainMenuView. Allowes to change view mode and lang"""
         # lang, dark - light view mode
         ...
-        my_logger.debug("settings_view established")
+        my_logger.debug("TheBrain.settings_view: settings_view established")
 
     def open_project_view(self) -> None:
         """"Called by MainMenuView. Apart from setting a OpenProjectView it loads a list of previously created projects"""
         self.main_window.main_frame.destroy()
         projects_list = self.load_list_of_projects()
-        self.main_window.main_frame = OpenProjectView(master=self.main_window, projects_list=projects_list)
-
-        my_logger.debug("OpenProjectView established")
         my_logger.debug(f"Projects loaded{projects_list}")
         
+        self.main_window.main_frame = OpenProjectView(master=self.main_window, projects_list=projects_list)
+
+        my_logger.debug("OpenProjectView established")        
 
     def new_project_view(self) -> None:
         """Called by MainMenuView. Switches it to NewProjectView(master=self.main_window)"""
         self.main_window.main_frame.destroy()
         self.main_window.main_frame = NewProjectView(master=self.main_window)
 
-        my_logger.debug("NewProjectView established")
+        my_logger.debug("TheBrain.new_project_view: NewProjectView established")
 
     def main_menu_view(self) -> None:
         self.main_window.main_frame.destroy()
         self.main_window.main_frame = MainMenuView(master=self.main_window)
 
+        my_logger.debug("TheBrain.main_menu_view: MainMenuView established")
+
     def collect_garbage(self) -> None:
         """An automatic garbage collection is disabled in MainWindow"""
         gc.collect()
+        my_logger.debug("TheBrain.collect_garbage: garbage collected")
 
     def clear_detail_and_zoom_pan(self) -> None:
         self.main_window.main_frame.zoom_pan.destroy()
         self.main_window.main_frame.detail_pan.destroy()
-
+        my_logger.debug("TheBrain.clear_detail_and_zoom_pan: zoom_pan and detail_pan cleared")
+        
     def enable_menubar_btns(self) -> None:
         self.main_window.menu_bar.enable_buttons()
+        my_logger.debug("TheBrain.enable_menubar_btns: menu_bar buttons enabled")
 
     def mount_detail_and_zoom_pan(self, file_id) -> None:
-
+        my_logger.debug(f"TheBrain.mount_detail_and_zoom_pan: tries to load detail and zoom pans for {file_id}")
+        
         path_to_img = self.project["files"][file_id]["path"]
         path_to_img = self.project_path.joinpath(path_to_img)
 
+        my_logger.debug(f"TheBrain.mount_detail_and_zoom_pan: path to img {path_to_img}")
+
         if self.file_pat_formats.search(path_to_img.suffix):
             try:
-
                 self.main_window.main_frame.zoom_pan = ZoomPan(master=self.main_window.main_frame, path_to_img=path_to_img)
                 self.main_window.main_frame.zoom_pan.grid(row=0, column=1)
-            except tk.TclError:
+                my_logger.debug(f"TheBrain.mount_detail_and_zoom_pan: zoom_pan established")
+            except tk.TclError as tk_error:
+                my_logger.debug(f"TheBrain.mount_detail_and_zoom_pan: zoom_pan error: {tk_error}")
                 return
-            except KeyError:
+            except KeyError as key_error:
+                my_logger.debug(f"TheBrain.mount_detail_and_zoom_pan: zoom_pan error: {key_error}")
                 return
         else:
             self.main_window.main_frame.zoom_pan = MyLabel(master=self.main_window.main_frame, text="Available formats: .jpg, .jpeg, .png")
             self.main_window.main_frame.zoom_pan.grid(row=0, column=1)
+            my_logger.debug(f"TheBrain.mount_detail_and_zoom_pan: unavailable format: {path_to_img}")
 
         self.main_window.main_frame.detail_pan = DetailPan(master=self.main_window.main_frame, file_id=file_id)
         self.main_window.main_frame.detail_pan.grid(row=1, column=0)
 
+        my_logger.debug(f"TheBrain.mount_detail_and_zoom_pan: detail_pan established")
+        
         self.collect_garbage()
 
 
 @log_exception_decorator(log_exception)
 class AddFilesFromDirView(MyFrame):
+    """Allowes adding dirs with files to a project
+    """
     def __init__(self, *args, **kwargs) -> None:
         super().__init__(*args, **kwargs)
 
@@ -679,21 +708,26 @@ class AddFilesFromDirView(MyFrame):
         MyButton(master=self, text="Go back", command=self.go_back).grid(column=0, row=4, sticky=tk.E)
         MyButton(master=self, text="Add files", command=self.add_files_from_dir).grid(column=2, row=4, sticky=tk.W)
 
+        my_logger.debug("AddFilesFromDirView initiated successfully")
+    
     def browse(self):
+        my_logger.debug("AddFilesFromDirView.browse: waiting for a dir to select")
         dialog = MyDialogWindow_AskDir(self.d_path, title="Select a directory with files to add")
         self.master.brain.main_window.wait_window(dialog)
+        my_logger.debug(f"AddFilesFromDirView.browse: selected: {self.d_path.get()}")
 
     def go_back(self):
+        my_logger.debug("AddFilesFromDirView.go_back: go back to self.master.brain.go_to_base_project_view(self.master.brain.project_path)")
         self.master.brain.go_to_base_project_view(self.master.brain.project_path)
 
     def add_files_from_dir(self):
-
+        my_logger.debug(f"AddFilesFromDirView.add_files_from_dir: self.master.brain.add_files_from_dir({self.d_path.get()}, {self.all_or_some_files_var.get())}")
         self.master.brain.add_files_from_dir(self.d_path.get(), self.all_or_some_files_var.get())
 
 
 @log_exception_decorator(log_exception)
 class MenuBar(MyMenu):
-    def __init__(self, *args, **kwargs):
+    def __init__(self, *args, **kwargs) -> None:
         super().__init__(*args, **kwargs)
 
         self.file_menu = MyMenu(master=self, tearoff=0)
@@ -712,29 +746,37 @@ class MenuBar(MyMenu):
 
         self.add_command(label="Add files to project", command=self.add_files_from_dir_view, state=tk.DISABLED) 
 
+        my_logger.debug("MenuBar initiated successfully")
+        
     def enable_buttons(self):
         self.entryconfigure("Add files to project", state=tk.NORMAL)
-
+        my_logger.debug("MenuBar.enable_buttons: buttons enabled")
+    
     def new_project(self):
+        my_logger.debug("MenuBar.new_project: self.master.brain.new_project_view()")
         self.master.brain.new_project_view()
 
     def open_project(self):
+        my_logger.debug("MenuBar.open_project: self.master.brain.open_project_view()")
         self.master.brain.open_project_view()
 
     def settings(self):
+        my_logger.debug("MenuBar.settings: self.master.brain.settings_view()")
         self.master.brain.settings_view()
 
     def add_files_from_dir_view(self):
+        my_logger.debug("MenuBar.add_files_from_dir_view: self.master.brain.add_files_from_dir_view()")
         self.master.brain.add_files_from_dir_view()
 
     def close(self):
         self.destroy()
         self.master.destroy()
+        my_logger.debug("MenuBar.close: Closed")
 
 
 @log_exception_decorator(log_exception)
 class BaseProjectView(MyFrame):
-    def __init__(self, *args, **kwargs):
+    def __init__(self, *args, **kwargs) -> None:
         super().__init__(*args, **kwargs)
         self.grid()
         self.master.title(f'{LANG.get("title")}: {self.master.brain.project_path}')
@@ -762,6 +804,7 @@ class BaseProjectView(MyFrame):
         self.rotating_pan = RotatingPan(master=self) # podłączyć Rotating pan
         self.rotating_pan.grid(row=1, column=1)
 
+        my_logger.debug("BaseProjectView initiated successfully")
 
 @log_exception_decorator(log_exception)
 class MainWindow(ctk.CTk):
@@ -769,7 +812,7 @@ class MainWindow(ctk.CTk):
     Keeps reference to TheBrain and MenuBar (menu bar is always visible at the top of the window).
     Garbage collection is disabled here as well
     """
-    def __init__(self, *args, **kwargs):
+    def __init__(self, *args, **kwargs) -> None:
         super().__init__(*args, **kwargs)
         self.title(LANG.get("title"))
         width = self.winfo_screenwidth()
@@ -796,7 +839,7 @@ class MainWindow(ctk.CTk):
 
 @log_exception_decorator(log_exception)
 class OpenProjectView(MyFrame):
-    def __init__(self, projects_list=None, *args, **kwargs):
+    def __init__(self, projects_list=None, *args, **kwargs) -> None:
         super().__init__(*args, **kwargs)
 
         self.projects_list = projects_list
@@ -828,19 +871,19 @@ class OpenProjectView(MyFrame):
         MyButton(master=self, text="Go back", command=self.go_back).grid(column=0, row=3, sticky=tk.NE)
         MyButton(master=self, text="Open project", command=self.go_to_base_project_view).grid(column=2, row=3, sticky=tk.NW)
 
-    def listbox_select(self, event):
+    def listbox_select(self, event) -> None:
         index = self.list_of_projects.curselection()
         if index:
             self.project_path.set(self.list_of_projects.get(index[0]))
 
-    def browse(self):
+    def browse(self) -> None:
         MyDialogWindow_AskDir(self.project_path, title="Select a directory with a project")
 
-    def go_back(self):
+    def go_back(self) -> None:
         self.master.brain.go_back_to_main_menu_or_base_pro_view() # change in the brain: if self.project is set ->
                                             # go back to base pro view (keep the same view -> load from Temp_layer?
 
-    def go_to_base_project_view(self):
+    def go_to_base_project_view(self) -> None:
 
         project_path = pathlib.Path(self.project_path.get())
 
