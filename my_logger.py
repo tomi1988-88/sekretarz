@@ -86,6 +86,7 @@ def log_exception(func_or_class):
             return func_or_class(*args, **kwargs)
         except Exception as e:
             my_logger.exception(e)
+            # add window with exception explanation - 
     return wrapper
 
 
