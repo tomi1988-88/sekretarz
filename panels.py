@@ -7,19 +7,19 @@ import customtkinter as ctk
 from tkinter import ttk
 from tkinter import (scrolledtext,
                      messagebox)
-from __base_classes import (MyFrame,
-                            MyScrollableFrame,
-                            MyLabel,
-                            MyEntry,
-                            MyButton,
-                            ExtraField,
-                            MyListbox,
-                            MyInputDialog)
+from base_classes import (MyFrame,
+                          MyScrollableFrame,
+                          MyLabel,
+                          MyEntry,
+                          MyButton,
+                          ExtraField,
+                          MyListbox,
+                          MyInputDialog)
 from __sekretarz_lang import LANG
 from __zoomed_canvas import ZoomAdvanced
-from my_logger import (my_logger,
-                       log_exception,
-                       log_exception_decorator)
+from my_logging_module import (my_logger,
+                               log_exception,
+                               log_exception_decorator)
 
 
 @log_exception_decorator(log_exception)
@@ -203,8 +203,8 @@ class DetailPan(MyFrame):
         # todo: combine the above
         MyButton(master=self.frame_lbls_btns, text="Add Label(s)", command=self.add_labels_to_file).grid(row=1, column=0, sticky=tk.S)
         MyButton(master=self.frame_lbls_btns, text="Remove Label(s)", command=self.remove_labels).grid(row=2, column=0)
-        MyButton(master=self.frame_lbls_btns, text="Move up", command=self.remove_labels).grid(row=3, column=0)
-        MyButton(master=self.frame_lbls_btns, text="Move down", command=self.remove_labels).grid(row=4, column=0, sticky=tk.N)
+        MyButton(master=self.frame_lbls_btns, text="Move up", command=self.move_lbl_up).grid(row=3, column=0)
+        MyButton(master=self.frame_lbls_btns, text="Move down", command=self.move_lbl_down).grid(row=4, column=0, sticky=tk.N)
 
         MyLabel(master=self, text=LANG.get("comment")).grid(row=5, column=0)
 
@@ -353,11 +353,72 @@ class DetailPan(MyFrame):
         indexes = self.lbls_listbox.curselection()
         if indexes:
             lables_to_remove = [self.lbls_listbox.get(index) for index in indexes]
-            (self.lbls_listbox.delete(index) for index in indexes)
+            for index in indexes:
+                self.lbls_listbox.delete(index)
 
             self.labels = [label for label in self.labels if label not in lables_to_remove]
 
-            self.master.brain.remove_file_labels(self.file_id, self.labels)
+            my_logger.debug(f"DetailPan {self.file_id}: Labels to remove: {lables_to_remove}")
+            my_logger.debug(f"DetailPan {self.file_id}: Labels left: {self.labels}")
+
+            self.master.brain.move_or_remove_file_labels(
+                self.file_id,
+                self.source,
+                self.path,
+                self.labels,
+                f"{dt.datetime.fromtimestamp(int(self.c_time)):%Y-%m-%d %H:%M:%S}",
+            )
+
+    def move_lbl_up(self):
+        indexes = self.lbls_listbox.curselection()
+        if indexes:
+            index = indexes[0]
+            if index == 0:
+                return
+
+            curr_label = self.lbls_listbox.get(index)
+            self.labels.insert(index - 1, self.labels.pop(index))
+            self.lbls_listbox.delete(index)
+            self.lbls_listbox.insert(index - 1, curr_label)
+
+            self.lbls_listbox.selection_set(index - 1)
+
+            my_logger.debug(f"DetailPan {self.file_id}: Label moved up: {curr_label}")
+            my_logger.debug(f"DetailPan {self.file_id}: Current labels: {self.labels}")
+
+            self.master.brain.move_or_remove_file_labels(
+                self.file_id,
+                self.source,
+                self.path,
+                self.labels,
+                f"{dt.datetime.fromtimestamp(int(self.c_time)):%Y-%m-%d %H:%M:%S}",
+            )
+
+    def move_lbl_down(self):
+        indexes = self.lbls_listbox.curselection()
+        if indexes:
+            index = indexes[0]
+            if index == len(self.labels) - 1:
+                return
+
+            curr_label = self.lbls_listbox.get(index)
+            self.labels.insert(index + 2, curr_label)
+            del self.labels[index]
+            self.lbls_listbox.insert(index + 2, curr_label)
+            self.lbls_listbox.delete(index)
+
+            self.lbls_listbox.selection_set(index + 1)
+
+            my_logger.debug(f"DetailPan {self.file_id}: Label moved down: {curr_label}")
+            my_logger.debug(f"DetailPan {self.file_id}: Current labels: {self.labels}")
+
+            self.master.brain.move_or_remove_file_labels(
+                self.file_id,
+                self.source,
+                self.path,
+                self.labels,
+                f"{dt.datetime.fromtimestamp(int(self.c_time)):%Y-%m-%d %H:%M:%S}",
+            )
 
     def alter_comment(self):
         comment = self.tbox_com.get("1.0", tk.END)[:-1]

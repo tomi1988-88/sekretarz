@@ -2,6 +2,8 @@ import atexit
 import logging.config
 import logging.handlers
 import os
+from tkinter import messagebox
+
 
 dir_log = f"{os.getcwd()}/log.log"
 
@@ -86,6 +88,7 @@ def log_exception(func_or_class):
             return func_or_class(*args, **kwargs)
         except Exception as e:
             my_logger.exception(e)
+            messagebox.showerror("Error", message=str(e))
             # add window with exception explanation - 
     return wrapper
 
