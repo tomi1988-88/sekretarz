@@ -53,7 +53,11 @@ class TheBrain:
     def move_or_remove_file_labels(self, file_id: str, source: str, path: str, labels: List, c_time: str) -> None:
         """Called by DetailPan.remove_labels.
         """
-        self.history_manager.save_previous_state(self.project["files"][file_id]["uuid"], "labels", self.project["files"][file_id]["labels"])
+        self.history_manager.save_previous_state(
+            self.project["files"][file_id]["uuid"], 
+            "labels", 
+            self.project["files"][file_id]["labels"]
+        )
         
         self.project["files"][file_id]["labels"] = labels
 
@@ -236,21 +240,33 @@ class TheBrain:
 
     def open_in_default_viewer(self, path: pathlib.Path) -> None:
         path = self.project_path.joinpath(path)
+        my_logger.debug(f"TheBrain.open_in_default_viewer: {path}")
         try:
             os.system(path)
-        except FileNotFoundError:
-            pass
-        except PermissionError:
-            pass
+        except FileNotFoundError as e:
+            my_logger.debug(f"TheBrain.open_in_default_viewer: {path} - FileNotFoundError")
+            messagebox.error(e)
+        except PermissionError as e:
+            my_logger.debug(f"TheBrain.open_in_default_viewer: {path} - PermissionError")
+            messagebox.error(e)
 
     def open_source_in_browser(self, src: str) -> None:
+        my_logger.debug(f"TheBrain.open_source_in_browser: {src}")
         webbrowser.open(src, new=2)
 
     def open_in_new_browser(self, path: pathlib.Path) -> None:
         path = self.project_path.joinpath(path)
+        my_logger.debug(f"TheBrain.open_in_new_browser: {path}")
         webbrowser.open(str(path), new=2)
 
     def alter_comment(self, file_id, comment) -> None:
+        self.history_manager.save_previous_state(
+            self.project["files"][file_id]["uuid"], 
+            "comment", 
+            self.project["files"][file_id]["comment"]
+        )
+        my_logger.debug(f"TheBrain.alter_comment: new comment for {file_id}: {comment}")
+        
         self.project["files"][file_id]["comment"] = comment
         self.save_project()
 
