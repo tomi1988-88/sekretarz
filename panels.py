@@ -377,7 +377,8 @@ class DetailPan(MyFrame):
                 return
 
             curr_label = self.lbls_listbox.get(index)
-            self.labels.insert(index - 1, self.labels.pop(index))
+            del self.labels[index]
+            self.labels.insert(index - 1, curr_label)
             self.lbls_listbox.delete(index)
             self.lbls_listbox.insert(index - 1, curr_label)
 
