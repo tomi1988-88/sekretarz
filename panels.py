@@ -55,7 +55,6 @@ class TreePan(MyFrame):
 
         self.tree.bind('<<TreeviewSelect>>', self.selecting_item)
 
-        # self.project = self.nametowidget(".").project
         self.populate()
         my_logger.info("TreePan initiated")
 
@@ -63,17 +62,17 @@ class TreePan(MyFrame):
         """Important note: tree iids = file_ids"""
         self.tree.delete(*self.tree.get_children())
 
-        for file_id, i in self.master.brain.project["files"].items():
+        for file_id, data in self.master.brain.project["files"].items():
             self.tree.insert(
                 "",
                 tk.END,
                 iid=file_id,
                 values=(
                     file_id,
-                    i.get("source"),
-                    i.get("path"),
-                    i.get("labels"),
-                    f"{dt.datetime.fromtimestamp(int(i.get('c_time'))): %Y-%m-%d %H:%M:%S}"
+                    data.get("source"),
+                    data.get("path"),
+                    data.get("labels"),
+                    f"{dt.datetime.fromtimestamp(int(data.get('c_time'))): %Y-%m-%d %H:%M:%S}"
                 )
             )
 
