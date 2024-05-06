@@ -51,12 +51,14 @@ class TheBrain:
         # self.file_pat_formats_str_list = [".png", ".jpg", ".jpeg", ".PNG", ".JPG", ".JPEG"]
 
     def move_or_remove_file_labels(self, file_id: str, source: str, path: str, labels: List, c_time: str) -> None:
-        """Called by DetailPan.
+        """Called by DetailPan.remove_labels.
         """
+        self.history_manager.save_previous_state(self.project["files"][file_id]["uuid"], "labels", self.project["files"][file_id]["labels"])
+        
         self.project["files"][file_id]["labels"] = labels
 
         self.save_project()
-
+        
         self.main_window.main_frame.tree_pan.tree.item(
             file_id,
             values=(
@@ -135,21 +137,43 @@ class TheBrain:
         tree = self.main_window.main_frame.tree_pan.tree
 
         tree.item(
-            file_id,
-            values=(
-                (file_id,
-                 self.project["files"][file_id]["source"],
-                 self.project["files"][file_id]["path"],
-                 self.project["files"][file_id]["labels"],
-                 dt.datetime.fromtimestamp(self.project["files"][file_id]["c_time"]).strftime("%Y-%m-%d %H:%M:%S"))
+                file_id,
+                values=(
+                    (file_id,
+                     self.project["files"][file_id]["source"],
+                     self.project["files"][file_id]["path"],
+                     self.project["files"][file_id]["labels"],
+                     dt.datetime.fromtimestamp(self.project["files"][file_id]["c_time"]).strftime("%Y-%m-%d %H:%M:%S"))
+                )
             )
-        )
 
     def delete_label(self, label: str) -> None:
+        """Called by LabelPan.delete_label
+        """
+        
         self.project["labels"].remove(label)
-        for file, data in self.project["files"].items():
+        my_logger.debug(f"TheBrain: label {label} deleted, current labels in the project: {self.project["labels"]}")
+        self.history_manager.save_to_general_history("Project", "labels", self.project["files"][file_id]["labels"])
+        
+        for file_id, data in self.project["files"].items():
             if label in data["labels"]:
                 data["labels"].remove(label)
+                my_logger.debug(f"TheBrain: delete_label for {file_id} - label deleted: {label}, current labels: {data["labels"]}")
+        
+        tree = self.main_window.main_frame.tree_pan.tree
+        for file_id in tree.winfo_children():
+            tree.item(
+            file_id,
+            values=(
+                    (file_id,
+                     self.project["files"][file_id]["source"],
+                     self.project["files"][file_id]["path"],
+                     self.project["files"][file_id]["labels"],
+                     dt.datetime.fromtimestamp(self.project["files"][file_id]["c_time"]).strftime("%Y-%m-%d %H:%M:%S")
+                    )
+                )
+            )
+            my_logger.debug(f"TheBrain: tree_pan.tree view updated for {file_id}")
 
     def rename_label(self, old_label: str, new_label: str, all_labels: List) -> None:
 
