@@ -11,17 +11,20 @@ from my_logging_module import (my_logger,
 
 @log_exception_decorator(log_exception)
 class HistoryManager:
-    """
-    Allows to undo changes. Creates history files for every record (separate files) and for a whole project.
+    """Allows to undo changes. Creates history files for every record (separate files) and for a whole project.
     """
 
     def __init__(self, brain, *args, **kwargs) -> None:
         self.brain = brain
 
     def del_file(self, file_id: str) -> None:
-        self.brain.project["del_files"][file_id] = copy.deepcopy(self.brain.project["files"][file_id])
-
+        self.save_to_general_history("Project", file_id, self.brain.project["files"][file_id])
+        
+        self.brain.project["del_files"][file_id] = copy.deepcopy(self.brain.project["files"][file_id])        
+      
         del self.brain.project["files"][file_id]
+
+        my_logger.debug(f"HistoryManager.del_file: {file_id}")
 
     def del_file_definietly(self) -> None:
         ...
@@ -49,7 +52,7 @@ class HistoryManager:
 
         my_logger.debug(f"HistoryManager.save_previous_state: {_uuid}: successful")
   
-    def save_to_general_history(self, _uuid_or_project: str, key: str, value: str | List, time_record=None) -> None:
+    def save_to_general_history(self, _uuid_or_project: str, key: str, value: str | List | Dict, time_record=None) -> None:
         """If _uuid_or_project referes to the project: _uuid_or_project = 'Project'
         """
         my_logger.debug(f"HistoryManager.save_to_general_history: {_uuid_or_project}: {key}: {value}")
