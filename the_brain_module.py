@@ -51,6 +51,8 @@ class TheBrain:
         # self.file_pat_formats_str_list = [".png", ".jpg", ".jpeg", ".PNG", ".JPG", ".JPEG"]
 
     def move_or_remove_file_labels(self, file_id: str, source: str, path: str, labels: List, c_time: str) -> None:
+        """Called by DetailPan.
+        """
         self.project["files"][file_id]["labels"] = labels
 
         self.save_project()
@@ -124,7 +126,7 @@ class TheBrain:
         for index in indexes:
             label_to_add = all_lbls_listbox.get(index)
             if label_to_add in current_labels:
-                return
+                continue
             detail_pan.lbls_listbox.insert(tk.END, label_to_add)
             self.project["files"][file_id]["labels"].append(label_to_add)
 
