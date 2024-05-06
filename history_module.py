@@ -26,9 +26,13 @@ class HistoryManager:
     def del_file_definietly(self) -> None:
         ...
 
-    def save_previous_state(self, _uuid: str, key: str, value: Dict) -> None:  # should be done with try/except or dict?
+    def save_previous_state(self, _uuid: str, key: str, value: str | List) -> None:  # should be done with try/except or dict?
+        """Called by TheBrain.move_or_remove_file_labels, 
+        """
         time_record = str(int(dt.datetime.today().timestamp()))
 
+        my_logger.debug(f"HistoryManager.save_previous_state: {_uuid}: {key}: {value}")
+      
         if self.check_if_history_file_exists(_uuid):
             h_data = self.load_history_file(_uuid)
 
@@ -43,13 +47,20 @@ class HistoryManager:
             self.save_history_file(_uuid, h_data)
             self.save_to_general_history(_uuid, key, value, time_record)
 
-    def save_to_general_history(self, _uuid_or_project: str, key: str, value: Dict, time_record=None) -> None:
+        my_logger.debug(f"HistoryManager.save_previous_state: {_uuid}: successful")
+  
+    def save_to_general_history(self, _uuid_or_project: str, key: str, value: str | List, time_record=None) -> None:
+        """If _uuid_or_project referes to the project: _uuid_or_project = 'Project'
+        """
+        my_logger.debug(f"HistoryManager.save_to_general_history: {_uuid_or_project}: {key}: {value}")
+        
         time_record = time_record if time_record else str(int(dt.datetime.today().timestamp()))
 
         gh_data = json.load_history_file('general_history')
         gh_data[f"{_uuid_or_project}_{time_record}"] = {key: value}
 
         self.save_history_file('general_history', gh_data)
+        my_logger.debug(f"HistoryManager.save_to_general_history: {_uuid_or_project}: successful")
 
     def restore_previous_state(self) -> None:
         ...
