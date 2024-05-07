@@ -240,6 +240,18 @@ class DetailPan(MyFrame):
 
         self.master.brain.set_file_or_project_history()
 
+    def update_fields(self, key: str, value: str | List) -> None:
+        if key == "labels":
+            self.lbls_listbox.delete(0, tk.END)
+            self.lbls_listbox.insert(tk.END, *value.split(" /// "))
+        elif key == "comment":
+            self.tbox_com.delete("1.0", tk.END)
+            self.tbox_com.insert("1.0", value)
+        else:
+            ...
+
+        my_logger.debug(f"DetailPan.update_fields: {self.file_id}: {key}: {value} - updated")
+
     def add_labels_to_file(self):
         self.master.brain.add_labels_to_file(self)
 
@@ -636,7 +648,7 @@ class FileHistoryPan(MyFrame):
         self.history_listbox = MyListbox(master=self)
         self.history_listbox.grid(row=2, column=0)
 
-        MyButton(master=self, text="Restore", command=self.restore_for_file)
+        MyButton(master=self, text="Restore", command=self.restore_for_file).grid(row=2, column=1)
 
         my_logger.debug(f"FileHistoryPan established")
     
@@ -655,5 +667,9 @@ class FileHistoryPan(MyFrame):
         indexes = self.history_listbox.currselection()
         if indexes:
             index = indexes[0]
-            record = 
+            record = self.history_listbox.get(index)
+
+            # parse record ad pass to the brain
+            self.master.master.brain.restore_previous_state()
+            my_logger.debug(f"Restoring for {file_id} accomplished")
             

@@ -50,10 +50,49 @@ class TheBrain:
         my_logger.debug("TheBrain initiated successfully")
         # self.file_pat_formats_str_list = [".png", ".jpg", ".jpeg", ".PNG", ".JPG", ".JPEG"]
 
+    def restore_previous_state(self, file_id_or_project: str, _uuid_or_project: str, key: str, value: str | List ) -> None:
+        """Called by ProjectHistoryPan, FileHistoryPan
+        """
+        my_logger.debug(f"TheBrain.restore_previous_state: {file_id_or_project}, {_uuid_or_project}, {key}, {value}")
+
+        if file_id_or_project == "Project":
+            self.project[key] = value
+        else:
+            if key == "labels":
+                self.project["files"][file_id_or_project][key] = value.split(" /// ")
+            else:
+                self.project["files"][file_id_or_project][key] = value
+        
+        self.save_project()
+        my_logger.debug(f"TheBrain.restore_previous_state: Project data restored")
+
+        if file_id_or_project in self.main_window.main_frame.tree_pan.tree.winf_children():
+            self.main_window.main_frame.tree_pan.tree.item(
+                file_id_or_project,
+                values=(
+                    (
+                        file_id_or_project,
+                        self.project["files"][file_id_or_project]["source"],
+                        self.project["files"][file_id_or_project]["path"],
+                        self.project["files"][file_id_or_project]["labels"],
+                        self.project["files"][file_id_or_project]["c_time"]).strftime("%Y-%m-%d %H:%M:%S"
+                        ),
+                    )
+                )
+
+            my_logger.debug(f"TheBrain.restore_previous_state: main_window.main_frame.tree_pan.tree updated")
+        
+        detail_pan = self.main_window.main_frame.detail_pan
+        if file_id_or_project == detail_pan.file_id:
+            detail_pan.update(key, value)
+
+        my_logger.debug(f"TheBrain.restore_previous_state: self.main_window.main_frame.detail_pan updated")
+
     def move_or_remove_file_labels(self, file_id: str, source: str, path: str, labels: List, c_time: str) -> None:
         """Called by DetailPan.remove_labels.
         """
         self.history_manager.save_previous_state(
+            file_id,
             self.project["files"][file_id]["uuid"], 
             "labels", 
             self.project["files"][file_id]["labels"]
@@ -163,7 +202,7 @@ class TheBrain:
         
         self.project["labels"].remove(label)
         my_logger.debug(f"TheBrain: label {label} deleted, current labels in the project: {self.project["labels"]}")
-        self.history_manager.save_to_general_history("Project", "labels", self.project["files"][file_id]["labels"])
+        self.history_manager.save_to_general_history("Project", "Project", "labels", self.project["files"][file_id]["labels"])
         
         for file_id, data in self.project["files"].items():
             if label in data["labels"]:
@@ -267,6 +306,7 @@ class TheBrain:
 
     def alter_comment(self, file_id, comment) -> None:
         self.history_manager.save_previous_state(
+            file_id,
             self.project["files"][file_id]["uuid"], 
             "comment", 
             self.project["files"][file_id]["comment"]
