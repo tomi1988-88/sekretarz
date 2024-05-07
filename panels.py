@@ -603,9 +603,16 @@ class ProjectHistoryPan(MyFrame):
         self.history_listbox = MyListbox(master=self)
         self.history_listbox.grid(row=1, column=0)
 
-    def set_project_history(self, project_history):
+        my_logger.debug(f"ProjectHistoryPan established")
+    
+    def set_project_history(self, project_history: Dict) -> None:
         self.history_listbox.delete(0, tk.END)
+        # project_history = {project: [f"{key} $$$ {value}" for key, value in dik.items() if isinstacne(value, str) else f"{key} $$$ {", ".join(value)}"] for project, dik in project_history.items()}
+        # project_history = [f"{project} $$$ {"".join(data)}" for project, data in project_history.items()]
+        
         self.history_listbox.insert(tk.END, *project_history)
+
+        my_logger.debug(f"ProjectHistoryPan.set_project_history: project history established")
 
 
 @log_exception_decorator(log_exception)
@@ -629,9 +636,24 @@ class FileHistoryPan(MyFrame):
         self.history_listbox = MyListbox(master=self)
         self.history_listbox.grid(row=2, column=0)
 
+        MyButton(master=self, text="Restore", command=self.restore_for_file)
+
+        my_logger.debug(f"FileHistoryPan established")
+    
     def set_file_history(self, file_id, file_history):
         self.file_id_var.set(file_id)
 
         self.history_listbox.delete(0, tk.END)
+        # file_history = {_uuid: [f"{key} $$$ {value}" for key, value in dik.items() if isinstacne(value, str) else f"{key} $$$ {", ".join(value)}"] for _uuid, dik in file_history.items()}
+        # file_history = [f"{_uuid} $$$ {"".join(data)}" for _uuid, data in file_history.items()]
+        
         self.history_listbox.insert(tk.END, *file_history)
 
+        my_logger.debug(f"FileHistoryPan.set_project_history: file history {file_id} established")
+    
+    def restore_for_file(self):
+        indexes = self.history_listbox.currselection()
+        if indexes:
+            index = indexes[0]
+            record = 
+            
