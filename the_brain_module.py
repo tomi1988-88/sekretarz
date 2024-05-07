@@ -81,11 +81,15 @@ class TheBrain:
     def set_file_or_project_history(self) -> None:
         """Called from DetailPan.__init__, RotatingPan buttons: command=self.file_history_pan; command=self.project_history_pan
         """
+        my_logger.debug("TheBrain.set_file_or_project_history function initiated")
+      
         project_history_pan_instance = isinstance(self.main_window.main_frame.rotating_pan.pan, ProjectHistoryPan)
         file_history_pan_instance = isinstance(self.main_window.main_frame.rotating_pan.pan, FileHistoryPan)
         detail_pan_instance = isinstance(self.main_window.main_frame.detail_pan, DetailPan)
 
         if project_history_pan_instance:
+            my_logger.debug(f"TheBrain.project_history_pan_instance: True")
+            
             project_history_pan = self.main_window.main_frame.rotating_pan.pan
 
             project_history_path = self.project_path.joinpath(f"history/general_history.json")
@@ -100,6 +104,8 @@ class TheBrain:
                 project_history_pan.set_project_history(project_history)
 
         elif detail_pan_instance and file_history_pan_instance:
+            my_logger.debug(f"TheBrain.file_history_pan_instance and TheBrain.detail_pan_instance: True")
+          
             file_history_pan = self.main_window.main_frame.rotating_pan.pan
             detail_pan = self.main_window.main_frame.detail_pan
 
