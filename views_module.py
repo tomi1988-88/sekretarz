@@ -1,6 +1,7 @@
 import pathlib
 import os
 import tkinter as tk
+from tkinter import filedialog
 from tkinter import messagebox
 from my_logging_module import (log_exception_decorator,
                                log_exception,
@@ -13,9 +14,12 @@ from base_classes import (MyButton,
                           MyLabel,
                           MyListbox,
                           MyRadiobutton,)
-from __sekretarz_lang import LANG
-from panels import (TreePan,
+from lang_module import LANG
+from panels import (DetailPan,
+                    ZoomPan,
+                    TreePan,
                     RotatingPan)
+
 
 @log_exception_decorator(log_exception)
 class AddFilesFromDirView(MyFrame):
@@ -68,9 +72,13 @@ class AddFilesFromDirView(MyFrame):
 
     def browse(self):
         my_logger.debug("AddFilesFromDirView.browse: waiting for a dir to select")
-        dialog = MyDialogWindow_AskDir(self.d_path, title="Select a directory with files to add")
-        self.master.brain.main_window.wait_window(dialog)
-        my_logger.debug(f"AddFilesFromDirView.browse: selected: {self.d_path.get()}")
+        # dialog = MyDialogWindow_AskDir(self.d_path, title="Select a directory with files to add")
+        # self.master.brain.main_window.wait_window(dialog)
+
+        ask_dir = filedialog.askdirectory(initialdir=os.getcwd(), title="Select a directory with files to add")
+        if ask_dir:
+            self.d_path.set(ask_dir)
+            my_logger.debug(f"AddFilesFromDirView.browse: selected: {self.d_path.get()}")
 
     def go_back(self):
         my_logger.debug("AddFilesFromDirView.go_back: go back to self.master.brain.go_to_base_project_view(self.master.brain.project_path)")
@@ -90,11 +98,17 @@ class BaseProjectView(MyFrame):
 
         self.brain = self.master.brain
 
-        self.columnconfigure(0, weight=1, minsize=500)
-        self.columnconfigure(1, weight=1, minsize=800)
+        # self.columnconfigure(0, weight=1, minsize=500)
+        # self.columnconfigure(1, weight=1, minsize=800)
+        #
+        # self.rowconfigure(0, weight=1, minsize=1000)
+        # self.rowconfigure(1, weight=1)
 
-        self.rowconfigure(0, weight=1)
-        self.rowconfigure(1, weight=1)
+        self.columnconfigure(0, weight=1, )
+        self.columnconfigure(1, weight=1, )
+
+        self.rowconfigure(0, weight=1, )
+        self.rowconfigure(1, weight=0, )
 
         # self.menu_bar = MenuBar(master=self)
         self.brain.enable_menubar_btns()
@@ -102,13 +116,13 @@ class BaseProjectView(MyFrame):
         self.tree_pan = TreePan(master=self)
         self.tree_pan.grid(row=0, column=0)
 
-        self.detail_pan = MyLabel(master=self, text="Detail Pan")
+        self.detail_pan = DetailPan(master=self)
         self.detail_pan.grid(row=1, column=0)
 
         self.zoom_pan = MyLabel(master=self, text="Zoom Pan")
         self.zoom_pan.grid(row=0, column=1)
 
-        self.rotating_pan = RotatingPan(master=self) # podłączyć Rotating pan
+        self.rotating_pan = RotatingPan(master=self)
         self.rotating_pan.grid(row=1, column=1)
 
         my_logger.debug("BaseProjectView initiated successfully")
@@ -202,10 +216,10 @@ class NewProjectView(MyFrame):
     def change_location(self) -> None:
         """Opens a new dialog window.
         """
-        MyDialogWindow_AskDir_CreateDir(string_var_to_set_path=self.d_path, title="Select a directory to set a project")
-        # ask_dir = filedialog.askdirectory(initialdir=self.d_path.get(), mustexist=False, title="Select a directory to set a project")
-        # if ask_dir:
-        #     self.d_path.set(ask_dir)
+        # MyDialogWindow_AskDir_CreateDir(string_var_to_set_path=self.d_path, title="Select a directory to set a project")
+        ask_dir = filedialog.askdirectory(initialdir=self.d_path.get(), mustexist=False, title="Select a directory to set a project")
+        if ask_dir:
+            self.d_path.set(ask_dir)
 
     def create_project(self) -> None:
         """Go to self.master.brain.create_project(temp_path)
