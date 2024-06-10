@@ -1,4 +1,5 @@
 import json
+import platform
 import re
 import pathlib
 import os
@@ -9,7 +10,7 @@ import gc
 import tkinter as tk
 import datetime as dt
 from typing import (List,
-                    Dict,)
+                    Dict, )
 from tkinter import messagebox
 from history_module import HistoryManager
 from my_logging_module import (log_exception_decorator,
@@ -32,7 +33,7 @@ from base_classes import MyLabel
 class TheBrain:
     """The core of the program. All interactions between windows, panels and project data go through TheBrain. Some minor operations are left in relevant objects.
     What's important it looks after projects files. Only TheBrain is granted to save and load the project - it keeps the reference likewise.
-    It's a quite large object so it should be parted into sub-brain managers.
+    It's a quite large object, so it should be parted into sub-brain managers.
     """
 
     def __init__(self, main_window) -> None:
@@ -41,67 +42,87 @@ class TheBrain:
         self.main_window = main_window
         self.project_path = None
         self.project = None
-        # self.d_path = tk.StringVar() # (maybe unnsecesary) variable for different dir_paths - is cleared to "" every time when a particular func is called
 
         self.history_manager = HistoryManager(brain=self)
-        # self.temp_layer = TempLayer()
         self.file_pat_formats = re.compile(r"(.png$|.jpg$|.jpeg$)", flags=re.IGNORECASE)
 
         my_logger.debug("TheBrain initiated successfully")
-        # self.file_pat_formats_str_list = [".png", ".jpg", ".jpeg", ".PNG", ".JPG", ".JPEG"]
 
-    def restore_previous_state(self, file_id_or_project: str, _uuid_or_project: str, key: str, value: str | List ) -> None:
+    def reset_tree(self) -> None:
+        """FilterPan.show_all.
+        """
+        self.main_window.main_frame.tree_pan.populate()
+
+        my_logger.debug("TheBrain.reset_tree: tree populated.")
+
+    def filter_tree(self, file_id_lst) -> None:
+        """FilterPan.filter.
+        """
+        self.main_window.main_frame.tree_pan.populate(file_id_lst)
+
+        my_logger.debug("TheBrain.filter_tree: tree filtered.")
+
+    def restore_previous_state(self,
+                               file_id_or_project: str,
+                               _uuid_or_project: str,
+                               key: str,
+                               value: str | List) -> None:
         """Called by ProjectHistoryPan, FileHistoryPan
         """
         my_logger.debug(f"TheBrain.restore_previous_state: {file_id_or_project}, {_uuid_or_project}, {key}, {value}")
 
         if file_id_or_project == "Project":
-            self.project[key] = value
+            if key == "labels":
+                self.project[key] = value.split(" /// ")
+            else:
+                self.project[key] = value  # currently there's no such a variant.
         else:
             if key == "labels":
                 self.project["files"][file_id_or_project][key] = value.split(" /// ")
             else:
                 self.project["files"][file_id_or_project][key] = value
-        
+
         self.save_project()
         my_logger.debug(f"TheBrain.restore_previous_state: Project data restored")
 
-        if file_id_or_project in self.main_window.main_frame.tree_pan.tree.winf_children():
+        if file_id_or_project in self.main_window.main_frame.tree_pan.tree.get_children():
             self.main_window.main_frame.tree_pan.tree.item(
                 file_id_or_project,
                 values=(
-                    (
-                        file_id_or_project,
+                    (file_id_or_project,
                         self.project["files"][file_id_or_project]["source"],
                         self.project["files"][file_id_or_project]["path"],
                         self.project["files"][file_id_or_project]["labels"],
-                        self.project["files"][file_id_or_project]["c_time"]).strftime("%Y-%m-%d %H:%M:%S"
-                        ),
-                    )
+                        dt.datetime.fromtimestamp(self.project["files"][file_id_or_project]["c_time"]).strftime("%Y-%m-%d %H:%M:%S"))
                 )
+            )
 
             my_logger.debug(f"TheBrain.restore_previous_state: main_window.main_frame.tree_pan.tree updated")
-        
+
         detail_pan = self.main_window.main_frame.detail_pan
-        if file_id_or_project == detail_pan.file_id:
-            detail_pan.update(key, value)
+        if isinstance(detail_pan, DetailPan) and file_id_or_project == detail_pan.file_id:
+            detail_pan.update_fields(key, value)
 
         my_logger.debug(f"TheBrain.restore_previous_state: self.main_window.main_frame.detail_pan updated")
+
+        self.history_manager.clear_previous_state(_uuid_or_project)
+
+        my_logger.debug(f"TheBrain.restore_previous_state: self.history_manager.clear_previous_state({_uuid_or_project}) - done")
 
     def move_or_remove_file_labels(self, file_id: str, source: str, path: str, labels: List, c_time: str) -> None:
         """Called by DetailPan.remove_labels.
         """
         self.history_manager.save_previous_state(
             file_id,
-            self.project["files"][file_id]["uuid"], 
-            "labels", 
+            self.project["files"][file_id]["uuid"],
+            "labels",
             self.project["files"][file_id]["labels"]
         )
-        
+
         self.project["files"][file_id]["labels"] = labels
 
         self.save_project()
-        
+
         self.main_window.main_frame.tree_pan.tree.item(
             file_id,
             values=(
@@ -121,14 +142,14 @@ class TheBrain:
         """Called from DetailPan.__init__, RotatingPan buttons: command=self.file_history_pan; command=self.project_history_pan
         """
         my_logger.debug("TheBrain.set_file_or_project_history function initiated")
-      
+
         project_history_pan_instance = isinstance(self.main_window.main_frame.rotating_pan.pan, ProjectHistoryPan)
         file_history_pan_instance = isinstance(self.main_window.main_frame.rotating_pan.pan, FileHistoryPan)
         detail_pan_instance = isinstance(self.main_window.main_frame.detail_pan, DetailPan)
 
         if project_history_pan_instance:
             my_logger.debug(f"TheBrain.project_history_pan_instance: True")
-            
+
             project_history_pan = self.main_window.main_frame.rotating_pan.pan
 
             project_history_path = self.project_path.joinpath(f"history/general_history.json")
@@ -138,30 +159,29 @@ class TheBrain:
                     project_history = json.load(f)
 
                 project_history_pan.set_project_history(project_history)
-            else:
-                project_history = ["empty list"]
-                project_history_pan.set_project_history(project_history)
 
         elif detail_pan_instance and file_history_pan_instance:
             my_logger.debug(f"TheBrain.file_history_pan_instance and TheBrain.detail_pan_instance: True")
-          
+
             file_history_pan = self.main_window.main_frame.rotating_pan.pan
             detail_pan = self.main_window.main_frame.detail_pan
 
             _uuid = detail_pan._uuid
             file_id = detail_pan.file_id
 
-            file_history_path = self.project_path.joinpath(f"history/{_uuid}")
-            if file_history_path.exists():
+            file_history_path = self.project_path.joinpath(f"history/{_uuid}.json")
+            if file_history_path.exists() and _uuid:
                 with open(file_history_path, "r") as f:
                     file_history = json.load(f)
 
                 file_history_pan.set_file_history(file_id, file_history)
             else:
-                file_history = ["empty list"]
+                file_history = [["empty list"]]
                 file_history_pan.set_file_history(file_id, file_history)
 
     def add_labels_to_file(self, detail_pan) -> None:
+
+        my_logger.debug("TheBrain.add_labels_to_file - procedure started.")
 
         if not isinstance(self.main_window.main_frame.rotating_pan.pan, LabelPan):
             return
@@ -179,6 +199,10 @@ class TheBrain:
             if label_to_add in current_labels:
                 continue
             detail_pan.lbls_listbox.insert(tk.END, label_to_add)
+            self.history_manager.save_previous_state(file_id,
+                                                     self.project["files"][file_id]["uuid"],
+                                                     "labels",
+                                                     self.project["files"][file_id]["labels"])
             self.project["files"][file_id]["labels"].append(label_to_add)
 
         self.save_project()
@@ -186,67 +210,131 @@ class TheBrain:
         tree = self.main_window.main_frame.tree_pan.tree
 
         tree.item(
+            file_id,
+            values=(
+                (file_id,
+                 self.project["files"][file_id]["source"],
+                 self.project["files"][file_id]["path"],
+                 self.project["files"][file_id]["labels"],
+                 dt.datetime.fromtimestamp(self.project["files"][file_id]["c_time"]).strftime("%Y-%m-%d %H:%M:%S"))
+            )
+        )
+        my_logger.debug("TheBrain.add_labels_to_file - accomplished")
+
+    def delete_label(self, label: str) -> None:
+        """Called by LabelPan.delete_label
+        """
+        self.history_manager.save_to_general_history("Project",
+                                                     "Project",
+                                                     "labels",
+                                                     self.project["labels"])
+
+        self.project["labels"].remove(label)
+        my_logger.debug(f"TheBrain: label {label} deleted, current labels in the project: {self.project["labels"]}")
+
+        for file_id, data in self.project["files"].items():
+            if label in data["labels"]:
+                data["labels"].remove(label)
+                my_logger.debug(
+                    f"TheBrain: delete_label for {file_id} - label deleted: {label}, current labels: {data["labels"]}")
+
+        tree = self.main_window.main_frame.tree_pan.tree
+        for file_id in tree.get_children():
+            tree.item(
                 file_id,
                 values=(
                     (file_id,
                      self.project["files"][file_id]["source"],
                      self.project["files"][file_id]["path"],
                      self.project["files"][file_id]["labels"],
-                     dt.datetime.fromtimestamp(self.project["files"][file_id]["c_time"]).strftime("%Y-%m-%d %H:%M:%S"))
-                )
-            )
-
-    def delete_label(self, label: str) -> None:
-        """Called by LabelPan.delete_label
-        """
-        
-        self.project["labels"].remove(label)
-        my_logger.debug(f"TheBrain: label {label} deleted, current labels in the project: {self.project["labels"]}")
-        self.history_manager.save_to_general_history("Project", "Project", "labels", self.project["files"][file_id]["labels"])
-        
-        for file_id, data in self.project["files"].items():
-            if label in data["labels"]:
-                data["labels"].remove(label)
-                my_logger.debug(f"TheBrain: delete_label for {file_id} - label deleted: {label}, current labels: {data["labels"]}")
-        
-        tree = self.main_window.main_frame.tree_pan.tree
-        for file_id in tree.winfo_children():
-            tree.item(
-            file_id,
-            values=(
-                    (file_id,
-                     self.project["files"][file_id]["source"],
-                     self.project["files"][file_id]["path"],
-                     self.project["files"][file_id]["labels"],
                      dt.datetime.fromtimestamp(self.project["files"][file_id]["c_time"]).strftime("%Y-%m-%d %H:%M:%S")
-                    )
+                     )
                 )
             )
             my_logger.debug(f"TheBrain: tree_pan.tree view updated for {file_id}")
 
     def rename_label(self, old_label: str, new_label: str, all_labels: List) -> None:
+        my_logger.debug(f"TheBrain.rename_label: old: {old_label}, new: {new_label}, labels: {all_labels}")
 
         self.project["labels"] = all_labels
 
-        for file, data in self.project["files"].items():
+        self.history_manager.save_to_general_history("Project",
+                                                     "Project",
+                                                     "labels",
+                                                     all_labels)
+
+        for file_id, data in self.project["files"].items():
             if old_label in data["labels"]:
                 index = data["labels"].index(old_label)
+
+                self.history_manager.save_previous_state(
+                    file_id,
+                    self.project["files"][file_id]["uuid"],
+                    "labels",
+                    self.project["files"][file_id]["labels"]
+                )
+
+                data["labels"].remove(old_label)
                 data["labels"].insert(index, new_label)
 
         self.save_project()
+        self.project = self.load_project()
+
+        curr_file_id = self.main_window.main_frame.detail_pan.file_id
+        if curr_file_id:
+            self.main_window.main_frame.detail_pan.update_pan(curr_file_id)
+
+        tree = self.main_window.main_frame.tree_pan.tree
+        print(tree)
+        for file_id in tree.get_children():
+            print(file_id)
+            tree.item(
+                file_id,
+                values=(
+                    (file_id,
+                     self.project["files"][file_id]["source"],
+                     self.project["files"][file_id]["path"],
+                     self.project["files"][file_id]["labels"],
+                     dt.datetime.fromtimestamp(self.project["files"][file_id]["c_time"]).strftime("%Y-%m-%d %H:%M:%S")
+                     )
+                )
+            )
+        my_logger.debug(f"TheBrain: tree_pan.tree view updated.")
 
     def save_new_order_all_labels(self, all_labels: List) -> None:
+        my_logger.debug(f"TheBrain.save_new_order_all_labels: {all_labels}")
+
+        self.history_manager.save_to_general_history("Project",
+                                                     "Project",
+                                                     "labels",
+                                                     self.project["labels"])
+
         self.project["labels"] = all_labels
         self.save_project()
 
+        my_logger.debug(f"TheBrain.save_new_order_all_labels: {all_labels} - successful")
+
     def add_label_to_project(self, new_label: str) -> None:
+        my_logger.debug(f"TheBrain.add_label_to_project: label: {new_label}")
+
+        labels_temp = " /// ".join(self.project["labels"]) if self.project["labels"] else ""
+
+        self.history_manager.save_to_general_history("Project",
+                                                     "Project",
+                                                     "labels",
+                                                     labels_temp)
         self.project["labels"].append(new_label)
         self.save_project()
 
-    def open_in_new_window_pan(self, file_id: str) -> None:
+        my_logger.debug(f"TheBrain.add_label_to_project: label: {new_label} - successful")
+
+    def open_in_new_window_pan(self) -> None:
+    # def open_in_new_window_pan(self, file_id: str) -> None:
         ...  # and create a list with all opened windows and set changes in master and top level window?
 
     def move_down_tree(self) -> None:
+        my_logger.debug("TheBrain.move_down_tree")
+
         tree = self.main_window.main_frame.tree_pan.tree
         item = tree.focus()
 
@@ -265,6 +353,8 @@ class TheBrain:
         )
 
     def move_up_tree(self) -> None:
+        my_logger.debug("TheBrain.move_up_tree")
+
         tree = self.main_window.main_frame.tree_pan.tree
         item = tree.focus()
 
@@ -284,22 +374,32 @@ class TheBrain:
         )
 
     def open_in_default_viewer(self, path: pathlib.Path) -> None:
+        my_logger.debug("TheBrain.open_in_default_viewer")
+
         path = self.project_path.joinpath(path)
         my_logger.debug(f"TheBrain.open_in_default_viewer: {path}")
         try:
-            os.system(path)
+            if platform.system() == "Windows":
+                path = str(pathlib.PureWindowsPath(path))
+                os.startfile(path)
+            else:
+                os.system(path)
         except FileNotFoundError as e:
             my_logger.debug(f"TheBrain.open_in_default_viewer: {path} - FileNotFoundError")
-            messagebox.error(e)
+            messagebox.showerror(str(e))
         except PermissionError as e:
             my_logger.debug(f"TheBrain.open_in_default_viewer: {path} - PermissionError")
-            messagebox.error(e)
+            messagebox.showerror(str(e))
 
     def open_source_in_browser(self, src: str) -> None:
+        my_logger.debug("TheBrain.open_source_in_browser")
+
         my_logger.debug(f"TheBrain.open_source_in_browser: {src}")
         webbrowser.open(src, new=2)
 
     def open_in_new_browser(self, path: pathlib.Path) -> None:
+        my_logger.debug("TheBrain.open_in_new_browser")
+
         path = self.project_path.joinpath(path)
         my_logger.debug(f"TheBrain.open_in_new_browser: {path}")
         webbrowser.open(str(path), new=2)
@@ -307,12 +407,12 @@ class TheBrain:
     def alter_comment(self, file_id, comment) -> None:
         self.history_manager.save_previous_state(
             file_id,
-            self.project["files"][file_id]["uuid"], 
-            "comment", 
+            self.project["files"][file_id]["uuid"],
+            "comment",
             self.project["files"][file_id]["comment"]
         )
         my_logger.debug(f"TheBrain.alter_comment: new comment for {file_id}: {comment}")
-        
+
         self.project["files"][file_id]["comment"] = comment
         self.save_project()
 
@@ -351,12 +451,15 @@ class TheBrain:
         self.main_window.main_frame.tree_pan.tree.delete(old_name)
 
         self.history_manager.save_previous_state(
+            file_id_new_name,
             self.project["files"][file_id_new_name]["uuid"],
             "f_name",
             old_name
         )
 
     def rename_source(self, file_id, old_source, path, labels, c_time, new_src) -> None:
+        my_logger.debug(f"TheBrain.rename_source {file_id}, old: {old_source}, new: {new_src})")
+
         self.project["files"][file_id]["source"] = new_src
 
         self.save_project()
@@ -375,12 +478,15 @@ class TheBrain:
         )
 
         self.history_manager.save_previous_state(
+            file_id,
             self.project["files"][file_id]["uuid"],
             f"source",
             old_source
         )
 
     def del_file(self, file_id) -> None:
+        my_logger.debug(f"TheBrain.del_file {file_id}")
+
         self.history_manager.del_file(file_id)
 
         self.main_window.main_frame.zoom_pan.destroy()
@@ -389,6 +495,8 @@ class TheBrain:
         self.main_window.main_frame.tree_pan.tree.delete(file_id)
 
     def add_files_from_dir_view(self) -> None:
+        my_logger.debug(f"TheBrain.add_files_from_dir_view")
+
         self.main_window.main_frame.destroy()
         self.main_window.main_frame = AddFilesFromDirView(master=self.main_window)
 
@@ -409,6 +517,8 @@ class TheBrain:
                 return True
 
     def add_files_from_dir(self, path, all_or_some_files_var) -> None:
+        my_logger.debug(f"TheBrain.add_files_from_dir: path: {path}, all: {all_or_some_files_var}")
+
         d_with_files_path = pathlib.Path(path)
 
         if not d_with_files_path.is_absolute():
@@ -469,23 +579,26 @@ class TheBrain:
                     "binds": [],
                 }
 
-            files_added = pro_counter - self.project["last_index"]
+        files_added = pro_counter - self.project["last_index"]
 
-            messagebox.showinfo(title="Files added", message=f"{files_added} file(s) added to the project.")
+        messagebox.showinfo(title="Files added", message=f"{files_added} file(s) added to the project.")
 
-            self.project["last_index"] = pro_counter
+        self.project["last_index"] = pro_counter
 
-            self.save_project()
-            self.main_window.main_frame.destroy()
-            self.go_to_base_project_view(self.project_path)
-            # todo: simplify this func to omit loading part? - procejt just has been saved
+        self.save_project()
+        self.main_window.main_frame.destroy()
+        self.go_to_base_project_view(self.project_path)
 
-            self.collect_garbage()
+        self.collect_garbage()
+
+        my_logger.debug(f"TheBrain.add_files_from_dir: path: {path}, all: {all_or_some_files_var} - accomplished")
 
     def create_project(self, project_path: pathlib.Path) -> None:
         """Creates a base project file in json format.
         Automatically adds the project to a list of projects and creates base history files
         """
+        my_logger.debug(f"TheBrain.create_project: project_path: {project_path}")
+
         self.project_path = project_path
         try:
             self.project_path.mkdir(parents=True)
@@ -659,10 +772,18 @@ class TheBrain:
     def mount_detail_and_zoom_pan(self, file_id) -> None:
         my_logger.debug(f"TheBrain.mount_detail_and_zoom_pan: tries to load detail and zoom pans for {file_id}")
 
-        path_to_img = self.project["files"][file_id]["path"]
+        try:
+            path_to_img = self.project["files"][file_id]["path"]
+        except KeyError as key_error:
+            my_logger.debug(f"TheBrain.mount_detail_and_zoom_pan: zoom_pan error: {key_error}")
+            return
+
         path_to_img = self.project_path.joinpath(path_to_img)
 
         my_logger.debug(f"TheBrain.mount_detail_and_zoom_pan: path to img {path_to_img}")
+
+        self.main_window.main_frame.zoom_pan.destroy()
+        my_logger.debug(f"TheBrain.mount_detail_and_zoom_pan: zoom_pan destroyed")
 
         if self.file_pat_formats.search(path_to_img.suffix):
             try:
@@ -678,12 +799,13 @@ class TheBrain:
                 return
         else:
             self.main_window.main_frame.zoom_pan = MyLabel(master=self.main_window.main_frame,
-                                                           text="Available formats: .jpg, .jpeg, .png")
+                                                           text="Available formats: .jpg, .jpeg, .png\nTry Open in default viewer")
             self.main_window.main_frame.zoom_pan.grid(row=0, column=1)
             my_logger.debug(f"TheBrain.mount_detail_and_zoom_pan: unavailable format: {path_to_img}")
 
-        self.main_window.main_frame.detail_pan = DetailPan(master=self.main_window.main_frame, file_id=file_id)
-        self.main_window.main_frame.detail_pan.grid(row=1, column=0)
+        self.main_window.main_frame.detail_pan.update_pan(file_id=file_id)
+        # self.main_window.main_frame.detail_pan= DetailPan(master=self.main_window.main_frame, file_id=file_id)
+        # self9.main_window.main_frame.detail_pan.grid(row=1, column=0)
 
         my_logger.debug(f"TheBrain.mount_detail_and_zoom_pan: detail_pan established")
 
