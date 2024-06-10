@@ -3,7 +3,7 @@ from my_logging_module import (log_exception_decorator,
                                log_exception,
                                my_logger)
 from base_classes import MyMenu
-from __sekretarz_lang import LANG
+from lang_module import LANG
 
 
 @log_exception_decorator(log_exception)
@@ -11,21 +11,16 @@ class MenuBar(MyMenu):
     def __init__(self, *args, **kwargs) -> None:
         super().__init__(*args, **kwargs)
 
-        self.file_menu = MyMenu(master=self, tearoff=0)
+        self.file_menu = MyMenu(master=self, tearoff=0, font=(None, 18))
         self.add_cascade(label="File", menu=self.file_menu)
 
         self.file_menu.add_command(label=LANG.get("new_pro"), command=self.new_project)
         self.file_menu.add_command(label=LANG.get("open_pro"), command=self.open_project)
-        self.file_menu.add_command(label="Settings", command=self.settings)
+        self.file_menu.add_command(label=LANG.get("settings"), command=self.settings)
         self.file_menu.add_separator()
         self.file_menu.add_command(label=LANG.get("quit"), command=self.close)
 
-        # MyButton(master=self.menu, text=LANG.get("new_pro"), command=self.new_project).grid()
-        # MyButton(master=self.menu, text=LANG.get("open_pro"), command=self.open_project).grid()
-        # MyButton(master=self.menu, text="Settings", command=self.settings).grid()
-        # MyButton(master=self.menu, text=LANG.get("quit"), command=self.close).grid()
-
-        self.add_command(label="Add files to project", command=self.add_files_from_dir_view, state=tk.DISABLED)
+        self.add_command(label=LANG.get("add_files"), command=self.add_files_from_dir_view, state=tk.DISABLED)
 
         my_logger.debug("MenuBar initiated successfully")
 
@@ -53,3 +48,4 @@ class MenuBar(MyMenu):
         self.destroy()
         self.master.destroy()
         my_logger.debug("MenuBar.close: Closed")
+      
