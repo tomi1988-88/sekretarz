@@ -1,19 +1,15 @@
-import time
 import tkinter as tk
+import traceback
 import customtkinter as ctk
 import os
-import re
 import pathlib
-import json
-from tkinter import ttk
-from tkinter import filedialog, messagebox
-from __sekretarz_lang import LANG
+from tkinter import ttk, scrolledtext
+from tkinter import messagebox
 
 
 class MyButton(ctk.CTkButton):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        # self.configure(pady=5, padx=10)
 
 
 class MyLabel(ctk.CTkLabel):
@@ -30,7 +26,7 @@ class MyEntry(ctk.CTkEntry):
 
 class MyListbox(tk.Listbox):
     def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
+        super().__init__(*args, font=(None, 18), **kwargs)
 
     def grid(self, **kwargs):
         if kwargs.get("sticky"):
@@ -82,6 +78,11 @@ class MyRadiobutton(ctk.CTkRadioButton):
         super().__init__(*args, **kwargs)
 
 
+class MyScrolledText(scrolledtext.ScrolledText):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, font=(None, 18), **kwargs)
+
+
 class MyDialogWindow_AskDir(ctk.CTkToplevel):
     def __init__(self, string_var_to_set_path, title, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -122,6 +123,10 @@ class MyDialogWindow_AskDir(ctk.CTkToplevel):
         self.central_row.columnconfigure(1, weight=0)
         self.tree = ttk.Treeview(master=self.central_row, show="headings")
         self.tree.grid(row=0, column=0, sticky=tk.NSEW)
+
+        self.style = ttk.Style()
+        self.style.configure("Treeview.Heading", font=(None, 18))
+        self.style.configure("Treeview", font=(None, 18), rowheight=28)
 
         scroll_y = ttk.Scrollbar(master=self.central_row, orient=tk.VERTICAL, command=self.tree.yview)
         scroll_y.grid(row=0, column=1, sticky=tk.NS)
@@ -245,36 +250,67 @@ class MyDialog(ctk.CTkInputDialog):
         self.grab_set()
 
 
-class ExtraField(ttk.Frame):
-    def __init__(self, field_name=None, field_val=None, file_id=None, *args, **kwargs):
-        ...
-        super().__init__(**kwargs)
+class MyErrorWindow(ctk.CTkToplevel):
+    def __init__(self, error: Exception, *args, **kwargs):
+        super().__init__(*args, **kwargs)
 
-        self.field_name = field_name
-        self.field_val = field_val
-        self.file_id = file_id
+        self.grab_set()
 
-        self.columnconfigure(0)
-        self.columnconfigure(1)
-        self.columnconfigure(2)
+        self.title("Error")
 
-        self.lbl_field = ttk.Label(master=self, text=self.field_name)
-        self.lbl_field.grid(column=0, row=0)
-        self.ent_field = ttk.Entry(master=self, width=10)
-        self.ent_field.grid(column=1, row=0)
-        self.ent_field.insert(tk.END, self.field_val)
-        self.btn_field = ttk.Button(master=self, text=LANG.get("update"), command=self.update)
-        self.btn_field.grid(column=2, row=0)
+        self.error_name = str(error)
+        self.error_tb = ''.join(traceback.TracebackException.from_exception(error).format())
 
-        self.project = self.nametowidget(".").load_project()
+        self.rowconfigure(0, weight=0)
+        self.rowconfigure(1, weight=1)
+        self.rowconfigure(2, weight=0)
+        self.rowconfigure(3, weight=0)
 
-    def update(self):
-        self.field_val = self.ent_field.get()
+        self.columnconfigure(0, weight=1)
 
-        self.project["files"][self.file_id]["extra_fields"][self.lbl_field["text"]] = self.field_val
+        (MyLabel(master=self, text="An exception occurred.\nPlease send the traceback to tomasz.sasiak@gmail.com.\nTraceback:")
+         .grid(row=0, column=0))
 
-        self.nametowidget(".").project = self.project
-        self.nametowidget(".").save_project()
+        self.tbox = MyScrolledText(master=self, height=10)
+        self.tbox.grid(row=1, column=0)
+        self.tbox.insert("1.0", self.error_tb)
 
-    def get_values(self):
-        return self.file_id, self.field_name, self.field_val
+        MyButton(master=self, text="Close", command=self.destroy)
+
+
+# class ExtraField(ttk.Frame):
+#     def __init__(self, field_name=None, field_val=None, file_id=None, *args, **kwargs):
+#         ...
+#         super().__init__(**kwargs)
+#
+#         self.field_name = field_name
+#         self.field_val = field_val
+#         self.file_id = file_id
+#
+#         self.columnconfigure(0)
+#         self.columnconfigure(1)
+#         self.columnconfigure(2)
+#
+#         self.lbl_field = ttk.Label(master=self, text=self.field_name)
+#         self.lbl_field.grid(column=0, row=0)
+#         self.ent_field = ttk.Entry(master=self, width=10)
+#         self.ent_field.grid(column=1, row=0)
+#         self.ent_field.insert(tk.END, self.field_val)
+#         self.btn_field = ttk.Button(master=self, text=LANG.get("update"), command=self.update)
+#         self.btn_field.grid(column=2, row=0)
+#
+#         self.project = self.nametowidget(".").load_project()
+#
+#     def update(self):
+#         self.field_val = self.ent_field.get()
+#
+#         self.project["files"][self.file_id]["extra_fields"][self.lbl_field["text"]] = self.field_val
+#
+#         self.nametowidget(".").project = self.project
+#         self.nametowidget(".").save_project()
+#
+#     def get_values(self):
+#         return self.file_id, self.field_name, self.field_val
+#
+# x = ""
+# print(x.split(" /// "))
