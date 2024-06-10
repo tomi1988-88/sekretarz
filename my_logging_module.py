@@ -1,9 +1,10 @@
 import atexit
+import traceback
 import logging.config
 import logging.handlers
 import os
 from tkinter import messagebox
-
+from base_classes import MyErrorWindow
 
 dir_log = f"{os.getcwd()}/log.log"
 
@@ -76,7 +77,7 @@ my_config_python_3_11 = {
 
 my_logger = logging.getLogger("my_logger")
 logging.config.dictConfig(my_config_python_3_11)
-# queue_handler = logging.getHandlerByName("queue_handler")  # add if my_config_python_3_12
+queue_handler = logging.getHandlerByName("queue_handler")  # add if my_config_python_3_12
 # if queue_handler:
 #     queue_handler.listener.start()
 #     atexit.register(queue_handler.listener.stop())
@@ -88,14 +89,13 @@ def log_exception(func_or_class):
             return func_or_class(*args, **kwargs)
         except Exception as e:
             my_logger.exception(e)
-            messagebox.showerror("Error", message=str(e))
-            # add window with exception explanation - 
+            MyErrorWindow(e)
     return wrapper
 
 
 def log_exception_decorator(decorator):
     def decorate(cls):
-        for attr in cls.__dict__:  # there's propably a better way to do this
+        for attr in cls.__dict__:  # there's probably a better way to do this
             if callable(getattr(cls, attr)):
                 setattr(cls, attr, decorator(getattr(cls, attr)))
         return cls
@@ -104,3 +104,4 @@ def log_exception_decorator(decorator):
 
 if __name__ == "__main__":
     pass
+    
