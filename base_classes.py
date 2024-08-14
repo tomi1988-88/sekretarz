@@ -7,6 +7,11 @@ from tkinter import ttk, scrolledtext
 from tkinter import messagebox
 
 
+class MyText(ctk.CTkTextbox):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
+
 class MyButton(ctk.CTkButton):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
