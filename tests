@@ -1,0 +1,243 @@
+# from tkinter import *
+# from tkinter import ttk
+#
+#
+# class Sketchpad(Canvas):
+#     def __init__(self, parent, **kwargs):
+#         super().__init__(parent, **kwargs)
+#         self.bind("<Button-1>", self.save_posn)
+#         self.bind("<B1-Motion>", self.add_contour)
+#         # self.bind("<ButtonRelease-1>", self.release)
+#
+#         self.bind("<ButtonRelease-1>", self.add_rectangle)
+#
+#         self.contour = self.create_rectangle(0, 0, 1, 1)
+#
+#     def save_posn(self, event):
+#         self.lastx, self.lasty = event.x, event.y
+#         print(self.lastx, self.lasty)
+#
+#     def add_line(self, event):
+#         self.create_line((self.lastx, self.lasty, event.x, event.y))
+#         self.save_posn(event)
+#
+#     def add_rectangle(self, event):
+#         self.create_rectangle(self.lastx, self.lasty, event.x, event.y, fill='red', outline='blue')
+#
+#     def add_contour(self, event):
+#         self.delete(self.contour)
+#         self.contour = self.create_rectangle(self.lastx, self.lasty, event.x, event.y, outline='blue')
+#
+#     def release(self, event):
+#         print(f"BTN realesed {event.x} , {event.y}")
+#
+#     def pressed(self, event):
+#         print(f"BTN pressed {event.x} , {event.y}")
+#
+#
+# root = Tk()
+# root.columnconfigure(0, weight=1)
+# root.rowconfigure(0, weight=1)
+#
+# sketch = Sketchpad(root)
+# sketch.grid(column=0, row=0, sticky=(N, W, E, S))
+#
+# root.mainloop()
+#
+# import tkinter as tk
+#
+#
+# root = tk.Tk()
+#
+# lst = tk.Listbox(master=root)
+# lst.pack()
+#
+# lst.insert(tk.END, "a", "b", "c")
+#
+# def delete_lst():
+#     curr = lst.curselection()
+#     print(curr)
+#     lst.delete(curr[0])
+#
+#
+# btn = tk.Button(master=root, text="Del", command=delete_lst)
+# btn.pack()
+#
+# root.mainloop()
+
+
+# import tkinter as tk
+# from PIL import Image, ImageTk
+#
+#
+# class Sketchpad(tk.Canvas):
+#
+#     def __init__(self, **kwargs):
+#         super().__init__(**kwargs)
+#
+#         self.photo = Image.open(r"U:\DOZIK\WSPOLNE_DOIK\DOZIK-1\TOMASZ SASIAK\AUCHAN WIH\Auchan_20.07.23_Pułaskiego60_wiih_Katowice\Auchan_wiih_katowice_produkt_1_regał.jpg")
+#         self.photo_tk = ImageTk.PhotoImage(self.photo)
+#         self.create_image(0, 0, image=self.photo_tk)
+#
+#         self.img_height, self.img_width = self.photo.size
+#         print(self.img_height, self.img_width, self.img_height / self.img_width)
+#
+#         # self.update()
+#
+#     def rotate_img(self):
+#         self.photo = self.photo.rotate(90, expand=True)
+#         self.photo_tk = ImageTk.PhotoImage(self.photo)
+#         self.create_image(0, 0, image=self.photo_tk)
+#
+#         # self.update()
+#
+#     def zoom_in(self):
+#         self.img_width *= 1.3
+#         self.img_height *= 1.3
+#         print(self.img_height, self.img_width, self.img_height / self.img_width)
+#
+#         self.photo = self.photo.resize((int(self.img_width), int(self.img_height)))
+#
+#         self.photo_tk = ImageTk.PhotoImage(self.photo)
+#         self.create_image(0, 0, image=self.photo_tk)
+#
+#         # self.update()
+#
+#     def zoom_out(self):
+#         self.img_width *= 0.8
+#         self.img_height *= 0.8
+#         print(self.img_height, self.img_width, self.img_height / self.img_width)
+#
+#         self.photo = self.photo.resize((int(self.img_width), int(self.img_height)))
+#
+#         self.photo_tk = ImageTk.PhotoImage(self.photo)
+#         self.create_image(0, 0, image=self.photo_tk)
+#
+#         # self.update()
+#
+#
+# root = tk.Tk()
+# root.columnconfigure(0, weight=1)
+# root.rowconfigure(0, weight=1)
+# root.rowconfigure(1, weight=0)
+# root.rowconfigure(2, weight=0)
+# root.rowconfigure(3, weight=0)
+#
+# sketch = Sketchpad(master=root)
+# sketch.grid(column=0, row=0, sticky=tk.NSEW)
+#
+# tk.Button(master=root, command=sketch.rotate_img, text="Rotate").grid(column=0, row=1)
+# tk.Button(master=root, command=sketch.zoom_in, text="Zoom in").grid(column=0, row=2)
+# tk.Button(master=root, command=sketch.zoom_out, text="Zoom out").grid(column=0, row=3)
+#
+# root.mainloop()
+
+
+import tkinter as tk
+from tkinter import ttk
+import customtkinter as ctk
+from PIL import Image, ImageTk
+
+
+class FrameZoom(ttk.Frame):
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+
+        self.columnconfigure(0, weight=1)
+        self.columnconfigure(1, weight=0)
+
+        self.rowconfigure(0, weight=1)
+        self.rowconfigure(1, weight=0)
+
+        self.canvas = tk.Canvas(master=self, )
+        self.canvas.grid(row=0, column=0, sticky=tk.NSEW)
+
+        self.vbar = ttk.Scrollbar(master=self, orient='vertical', command=self.canvas.yview)
+        self.hbar = ttk.Scrollbar(master=self, orient='horizontal', command=self.canvas.xview)
+        self.vbar.grid(row=0, column=1, sticky='ns')
+        self.hbar.grid(row=1, column=0, sticky='we')
+
+        self.canvas.configure(xscrollcommand=self.hbar.set, yscrollcommand=self.vbar.set)
+
+        self.photo = Image.open(r"U:\DOZIK\WSPOLNE_DOIK\DOZIK-1\TOMASZ SASIAK\AUCHAN WIH\Auchan_20.07.23_Pułaskiego60_wiih_Katowice\Auchan_wiih_katowice_produkt_1_regał.jpg")
+        self.photo_tk = ImageTk.PhotoImage(self.photo)
+        self.canvas.create_image(0, 0, image=self.photo_tk)
+
+        self.canvas.configure(scrollregion=self.canvas.bbox("all"))
+
+        self.img_width, self.img_height = self.photo.size
+        print(self.img_height, self.img_width, self.img_height / self.img_width)
+
+    def rotate_img(self):
+        self.photo = self.photo.rotate(90, expand=True)
+        self.photo_tk = ImageTk.PhotoImage(self.photo)
+        self.canvas.delete("all")
+        # self.canvas.update()
+        self.canvas.create_image(0, 0, image=self.photo_tk)
+
+        self.canvas.configure(scrollregion=self.canvas.bbox("all"))
+
+    def zoom_in(self):
+        self.img_width *= 1.3
+        self.img_height *= 1.3
+        print(self.img_height, self.img_width, self.img_height / self.img_width)
+
+        self.photo = self.photo.resize((int(self.img_width), int(self.img_height)))
+
+        self.photo_tk = ImageTk.PhotoImage(self.photo)
+        self.canvas.delete("all")
+        self.canvas.create_image(0, 0, image=self.photo_tk)
+        self.canvas.configure(scrollregion=self.canvas.bbox("all"))
+
+    def zoom_out(self):
+        self.img_width *= 0.8
+        self.img_height *= 0.8
+        print(self.img_height, self.img_width, self.img_height / self.img_width)
+
+        self.photo = self.photo.resize((int(self.img_width), int(self.img_height)))
+
+        self.photo_tk = ImageTk.PhotoImage(self.photo)
+        self.canvas.delete("all")
+        self.canvas.create_image(0, 0, image=self.photo_tk)
+        self.canvas.configure(scrollregion=self.canvas.bbox("all"))
+
+
+root = tk.Tk()
+root.columnconfigure(0, weight=1)
+root.rowconfigure(0, weight=1)
+root.rowconfigure(1, weight=0)
+root.rowconfigure(2, weight=0)
+root.rowconfigure(3, weight=0)
+
+x = FrameZoom(master=root)
+x.grid(row=0, column=0, sticky=tk.NSEW)
+
+ttk.Button(master=root, text="rotate", command=x.rotate_img).grid(row=1, column=0)
+ttk.Button(master=root, text="zoom in", command=x.zoom_in).grid(row=2, column=0)
+ttk.Button(master=root, text="zoom out", command=x.zoom_out).grid(row=3, column=0)
+
+root.mainloop()
+
+
+
+# from PIL import Image
+# import webbrowser
+# image = Image.open(r"U:\DOZIK\WSPOLNE_DOIK\DOZIK-1\TOMASZ SASIAK\AUCHAN WIH\Auchan_20.07.23_Pułaskiego60_wiih_Katowice\Auchan_wiih_katowice_produkt_1_regał.jpg")
+#
+# webbrowser.open(r"U:\DOZIK\WSPOLNE_DOIK\DOZIK-1\TOMASZ SASIAK\AUCHAN WIH\Auchan_20.07.23_Pułaskiego60_wiih_Katowice\Auchan_wiih_katowice_produkt_1_regał.jpg")
+#
+# # rotate 270 degrees counter-clockwise
+# # imRotate = image.rotate(90, expand=True)
+# # filename = "Rotated22.jpg"
+# # imRotate.save(filename)
+# width, height = image.size
+#
+# imResized = image.resize((int(width * 1.3), int(height * 1.3)))
+#
+# filename = "Resized2.jpg"
+# imResized.save(filename)
+# # a simple way to show the image file is to use module webbrowser
+# # which activates the default viewer associated with the image
+# # works with Windows and Linux
+#
+# webbrowser.open(filename)
