@@ -1,515 +1,934 @@
+import datetime
+import json
+import platform
+import re
 import pathlib
 import os
-import re
+import webbrowser
+import shutil
+import uuid
+import gc
 import tkinter as tk
-from tkinter import filedialog
+import datetime as dt
+from typing import (List,
+                    Dict,
+                    Tuple)
 from tkinter import messagebox
-from tkinter import ttk
+from history_module import HistoryManager
 from my_logging_module import (log_exception_decorator,
                                log_exception,
                                my_logger)
-from base_classes import (MyButton,
-                          MyDialogWindow_AskDir,
-                          MyDialogWindow_AskDir_CreateDir,
-                          MyEntry,
-                          MyFrame,
-                          MyLabel,
-                          MyListbox,
-                          MyRadiobutton,
-                          MyText)
-from lang_module import LANG
-from panels import (DetailPan,
+from panels import (ProjectHistoryPan,
+                    FileHistoryPan,
+                    DetailPan,
                     ZoomPan,
-                    TreePan,
-                    RotatingPan)
+                    LabelPan)
+from views_module import (AddDirView,
+                          AddFilesView,
+                          ManageSourcesView,
+                          BaseProjectView,
+                          OpenProjectView,
+                          NewProjectView,
+                          MainMenuView)
+from base_classes import MyLabel
+from lang_module import LANG
 
 
 @log_exception_decorator(log_exception)
-class ManageSourcesView(MyFrame):
-    def __init__(self, *args, **kwargs) -> None:
-        super().__init__(*args, **kwargs)
-        self.grid()
+class TheBrain:
+    """The core of the program. All interactions between windows, panels and project data go through TheBrain. Some minor operations are left in relevant objects.
+    What's important it looks after projects files. Only TheBrain is granted to save and load the project - it keeps the reference likewise.
+    It's a quite large object, so it should be parted into sub-brain managers.
+    """
 
-        self.columnconfigure((0, 1, 2), weight=1)
-        self.rowconfigure((0, 1), weight=1)
+    def __init__(self, main_window) -> None:
+        """Initiated by TheMainWindow.
+        """
+        self.main_window = main_window
+        self.project_path = None
+        self.project = None
 
-        self.add_sources_pan = MyFrame(master=self)
-        self.add_sources_pan.grid(row=0, column=0)
-
-        self.add_sources_pan.columnconfigure(0, weight=1)
-        self.add_sources_pan.rowconfigure((0, 2), weight=0)
-        self.add_sources_pan.rowconfigure(1, weight=1)
-
-        MyLabel(master=self.add_sources_pan, text=LANG.get("Pass_sources")).grid(row=0, column=0)
-
-        self.add_sources_textbox = MyText(master=self.add_sources_pan)
-        self.add_sources_textbox.grid(row=1, column=0, sticky=tk.NSEW)
-        self.add_sources_textbox.insert("1.0", text=LANG.get("insert_sources"))
-
-        self.add_sources_pan_bottom = MyFrame(master=self.add_sources_pan)
-        self.add_sources_pan_bottom.grid(row=2, column=0)
-
-        self.add_sources_pan_bottom.columnconfigure((0, 1), weight=1)
-        self.add_sources_pan_bottom.rowconfigure(0, weight=0)
-
-        MyButton(master=self.add_sources_pan_bottom, text=LANG.get("add_sources"), command=self.add_sources_to_project).grid(row=0, column=0)
-        MyButton(master=self.add_sources_pan_bottom, text=LANG.get("del_source_pro"), command=self.del_sources_from_project).grid(row=0, column=1)
-
-        self.zoom_pan = MyFrame(master=self)
-        self.zoom_pan.grid(row=0, column=1, columnspan=2)
-
-        self.bottom_pan = MyFrame(master=self)
-        self.bottom_pan.grid(row=1, column=0, columnspan=3)
-
-        self.bottom_pan.columnconfigure((0, 2), weight=1)
-        self.bottom_pan.columnconfigure(1, weight=0)
-        self.bottom_pan.rowconfigure(0, weight=1)
-
-        self.sources_listbox = MyListbox(master=self.bottom_pan)
-        self.sources_listbox.grid(row=0, column=0, sticky=tk.NSEW)
-
-        self.vertical_menu = MyFrame(master=self.bottom_pan)
-        self.vertical_menu.grid(row=0, column=1)
-        self.vertical_menu.columnconfigure(0, weight=0)
-        self.vertical_menu.rowconfigure((0, 1, 2, 3, 4), weight=0)
-
-        MyButton(master=self.vertical_menu, text=LANG.get("add_source"), command=self.add_sources).grid(row=0, column=0)
-        MyButton(master=self.vertical_menu, text=LANG.get("del_source"), command=self.del_sources).grid(row=1, column=0)
-        MyButton(master=self.vertical_menu, text=LANG.get("go_back"), command=self.go_back).grid(row=2, column=0)
-
-        self.files_tree = ttk.Treeview(master=self.bottom_pan, show="headings")
-        self.files_tree.grid(row=0, column=2, sticky=tk.NSEW)
-
-        columns = ("f_name", "source")
-        self.files_tree.configure(columns=columns)
-
-        self.files_tree.heading("f_name", text=LANG.get("f_name"))
-        self.files_tree.heading("source", text=LANG.get("source"))
-
-        self.files_tree.bind('<<TreeviewSelect>>', self.tree_selecting_item)
-
-        for _uuid, data in self.master.brain.project["files"].items():
-            self.files_tree.insert(
-                "",
-                tk.END,
-                iid=_uuid,
-                values=(
-                    data.get("f_name"),
-                    data.get("source"),
-                )
-            )
-
+        self.history_manager = HistoryManager(brain=self)
         self.file_pat_formats = re.compile(r"(.png$|.jpg$|.jpeg$)", flags=re.IGNORECASE)
 
-        self.sources_listbox.insert(tk.END, *self.master.brain.project["sources"])
+        my_logger.debug("TheBrain initiated successfully")
 
-    def tree_selecting_item(self, event):
-        _uuid = self.files_tree.focus()
-        if _uuid:
-            try:
-                path_to_img = self.master.brain.project["files"][_uuid]["path"]
-            except KeyError as key_error:
-                my_logger.debug(f"ManageSourcesView.tree_selecting_item: zoom_pan error: {key_error}")
+    def reset_tree(self) -> None:
+        """FilterPan.show_all
+        """
+        self.main_window.main_frame.tree_pan.populate()
+
+        my_logger.debug("TheBrain.reset_tree: tree populated.")
+
+    def filter_tree(self, file_id_lst: List) -> None:
+        """FilterPan.filter
+        """
+        self.main_window.main_frame.tree_pan.populate(file_id_lst)
+
+        my_logger.debug("TheBrain.filter_tree: tree filtered.")
+
+    def look_up(self, to_include: List, to_exclude: List):
+        """LookUpPan.look_up
+        Lazy implementation: if
+        """
+        tree = self.main_window.main_frame.tree_pan.tree
+
+        tree_children = tree.get_children()
+
+        if any(to_include):
+            for _uuid in tree_children:
+                if to_include[0]:
+                    if to_include[0] in self.project["files"][_uuid]["f_name"]:
+                        continue
+                if to_include[1]:
+                    if to_include[1] in self.project["files"][_uuid]["source"]:
+                        continue
+                if to_include[2]:
+                    if to_include[2] in self.project["files"][_uuid]["comment"]:
+                        continue
+                tree.delete(_uuid)
+
+        if any(to_exclude):
+            for _uuid in tree_children:
+                if to_exclude[0]:
+                    if to_exclude[0] not in self.project["files"][_uuid]["f_name"]:
+                        continue
+                if to_exclude[1]:
+                    if to_exclude[1] not in self.project["files"][_uuid]["source"]:
+                        continue
+                if to_exclude[2]:
+                    if to_exclude[2] not in self.project["files"][_uuid]["comment"]:
+                        continue
+                tree.delete(_uuid)
+
+    def restore_previous_state(self, key: str, data: Dict) -> None:
+        """Called by ProjectHistoryPan.restore_for_project, FileHistoryPan.restore_for_file
+        """
+        print(key)
+        # key_history = record[0]
+        _, _uuid_or_pro, _ = key.split(", ")
+        # data = record[1]
+
+        if _uuid_or_pro == "Project":
+            for key_, val in data.items():
+                self.project[key_] = val
+            self.save_project()
+        else:
+            for key_, val in data.items():
+                self.project["files"][_uuid_or_pro][key_] = val
+            self.save_project()
+
+        self.history_manager.clear_previous_state(key)
+
+        if _uuid_or_pro in self.main_window.main_frame.tree_pan.tree.get_children():
+            self.main_window.main_frame.tree_pan.tree.item(
+                _uuid_or_pro,
+                values=(
+                    (
+                        self.project["files"][_uuid_or_pro]["f_name"],
+                        self.project["files"][_uuid_or_pro]["source"],
+                        self.project["files"][_uuid_or_pro]["path"],
+                        self.project["files"][_uuid_or_pro]["labels"],
+                        dt.datetime.fromtimestamp(self.project["files"][_uuid_or_pro]["c_time"]).strftime(
+                            "%Y-%m-%d %H:%M:%S")
+                    )
+                )
+            )
+
+        detail_pan = self.main_window.main_frame.detail_pan
+        if isinstance(detail_pan, DetailPan) and _uuid_or_pro == detail_pan._uuid:
+            detail_pan.update_pan(_uuid_or_pro)
+
+    def move_or_remove_file_labels(self, _uuid: str, new_labels: List) -> None:
+                                   # file_id: str, source: str, path: str, labels: List, c_time: str) -> None:
+        """Called by DetailPan.remove_labels, DetailPan.move_lbl_up, DetailPan.move_lbl_down
+        """
+
+        self.history_manager.save_to_general_history(
+            self.project["files"][_uuid]["f_name"],
+            _uuid,
+            {"labels": self.project["files"][_uuid]["labels"]}
+        )
+
+        self.project["files"][_uuid]["labels"] = new_labels
+
+        self.save_project()
+
+        self.main_window.main_frame.tree_pan.tree.item(
+            _uuid,
+            values=(
+                (
+                    self.project["files"][_uuid]["f_name"],
+                    self.project["files"][_uuid]["source"],
+                    self.project["files"][_uuid]["path"],
+                    self.project["files"][_uuid]["labels"],
+                    dt.datetime.fromtimestamp(self.project["files"][_uuid]["c_time"]).strftime("%Y-%m-%d %H:%M:%S"),
+                )
+            )
+        )
+
+        my_logger.debug(f"TheBrain: {_uuid} new sequence of labels: {new_labels}")
+
+    def set_file_or_project_history(self) -> None:
+        """Called from DetailPan.__init__(?), RotatingPan buttons: command=self.file_history_pan; command=self.project_history_pan
+        """
+        my_logger.debug("TheBrain.set_file_or_project_history function initiated")
+
+        project_history_pan_instance = isinstance(self.main_window.main_frame.rotating_pan.pan, ProjectHistoryPan)
+        file_history_pan_instance = isinstance(self.main_window.main_frame.rotating_pan.pan, FileHistoryPan)
+        detail_pan_instance = isinstance(self.main_window.main_frame.detail_pan, DetailPan)
+
+        if project_history_pan_instance:
+            my_logger.debug(f"TheBrain.project_history_pan_instance: True")
+
+            project_history_pan = self.main_window.main_frame.rotating_pan.pan
+
+            project_history_path = self.project_path.joinpath(f"history/general_history.json")
+
+            if project_history_path.exists():
+                with open(project_history_path, "r") as f:
+                    project_history = json.load(f)
+
+                project_history_pan.set_project_history(project_history)
+
+        elif detail_pan_instance and file_history_pan_instance:
+            my_logger.debug(f"TheBrain.file_history_pan_instance and TheBrain.detail_pan_instance: True")
+
+            file_history_pan = self.main_window.main_frame.rotating_pan.pan
+            detail_pan = self.main_window.main_frame.detail_pan
+
+            _uuid = detail_pan._uuid
+            f_name = detail_pan.f_name
+
+            project_history_path = self.project_path.joinpath(f"history/general_history.json")
+
+            if project_history_path.exists():
+                with open(project_history_path, "r") as f:
+                    project_history = json.load(f)
+
+                file_history = {}
+
+                for key, record in project_history.items():
+                    _, __uuid, _ = key.split(", ")
+                    if __uuid == _uuid:
+                        file_history[key] = record
+
+                file_history_pan.set_file_history(_uuid, f_name, file_history)
+            else:
+                file_history = {}
+                file_history_pan.set_file_history(_uuid, f_name, file_history)
+
+    def add_labels_to_file(self, detail_pan) -> None:
+
+        my_logger.debug("TheBrain.add_labels_to_file - procedure started.")
+
+        if not isinstance(self.main_window.main_frame.rotating_pan.pan, LabelPan):
+            return
+
+        all_lbls_listbox = self.main_window.main_frame.rotating_pan.pan.all_lbls_listbox
+        _uuid = detail_pan._uuid
+
+        indexes = all_lbls_listbox.curselection()
+        if not indexes:
+            return
+
+        current_labels = detail_pan.lbls_listbox.get(0, tk.END)
+        for index in indexes:
+            label_to_add = all_lbls_listbox.get(index)
+            if label_to_add in current_labels:
+                continue
+            detail_pan.lbls_listbox.insert(tk.END, label_to_add)
+            self.history_manager.save_to_general_history(
+                self.project["files"][_uuid]["f_name"],
+                _uuid,
+                {"labels": self.project["files"][_uuid]["labels"]}
+            )
+            self.project["files"][_uuid]["labels"].append(label_to_add)
+
+        self.save_project()
+
+        tree = self.main_window.main_frame.tree_pan.tree
+
+        tree.item(
+            _uuid,
+            values=(
+                    (
+                        self.project["files"][_uuid]["f_name"],
+                        self.project["files"][_uuid]["source"],
+                        self.project["files"][_uuid]["path"],
+                        self.project["files"][_uuid]["labels"],
+                        dt.datetime.fromtimestamp(self.project["files"][_uuid]["c_time"]).strftime("%Y-%m-%d %H:%M:%S")
+                    )
+            )
+        )
+        my_logger.debug("TheBrain.add_labels_to_file - accomplished")
+
+    def delete_label(self, label: str) -> None:
+        """Called by LabelPan.delete_label
+        """
+        self.history_manager.save_to_general_history("Project",
+                                                     "Project",
+                                                     {"labels": self.project["labels"]})
+
+        self.project["labels"].remove(label)
+        self.save_project()
+        my_logger.debug(f"TheBrain: label {label} deleted, current labels in the project: {self.project["labels"]}")
+
+        for _uuid, data in self.project["files"].items():
+            if label in data["labels"]:
+                self.history_manager.save_to_general_history(self.project["files"][_uuid]["f_name"], _uuid, {"labels": data["labels"]})
+
+                data["labels"].remove(label)
+                my_logger.debug(
+                    f"TheBrain: delete_label for {_uuid}, {self.project["files"][_uuid]["f_name"]} - label deleted: {label}, current labels: {data["labels"]}")
+        self.save_project()
+
+        curr_uuid = self.main_window.main_frame.detail_pan._uuid
+        if curr_uuid:
+            self.main_window.main_frame.detail_pan.update_pan(curr_uuid)
+
+        tree = self.main_window.main_frame.tree_pan.tree
+        for _uuid in tree.get_children():
+            tree.item(
+                _uuid,
+                values=(
+                        (
+                            self.project["files"][_uuid]["f_name"],
+                            self.project["files"][_uuid]["source"],
+                            self.project["files"][_uuid]["path"],
+                            self.project["files"][_uuid]["labels"],
+                            dt.datetime.fromtimestamp(self.project["files"][_uuid]["c_time"]).strftime("%Y-%m-%d %H:%M:%S")
+                        )
+                )
+            )
+            my_logger.debug(f"TheBrain: tree_pan.tree view updated for {_uuid}, {self.project["files"][_uuid]["f_name"]} ")
+
+    def rename_label(self, old_label: str, new_label: str, all_labels: List) -> None:
+        my_logger.debug(f"TheBrain.rename_label: old: {old_label}, new: {new_label}, labels: {all_labels}")
+
+        self.history_manager.save_to_general_history("Project", "Project", {"labels": all_labels})
+
+        self.project["labels"] = all_labels
+
+        for _uuid, data in self.project["files"].items():
+            if old_label in data["labels"]:
+                index = data["labels"].index(old_label)
+
+                self.history_manager.save_to_general_history(self.project["files"][_uuid]["f_name"], _uuid, {"labels": data["labels"]})
+
+                data["labels"].remove(old_label)
+                data["labels"].insert(index, new_label)
+
+        self.save_project()
+        self.project = self.load_project()
+
+        curr_uuid = self.main_window.main_frame.detail_pan._uuid
+        if curr_uuid:
+            self.main_window.main_frame.detail_pan.update_pan(curr_uuid)
+
+        tree = self.main_window.main_frame.tree_pan.tree
+
+        for _uuid in tree.get_children():
+            tree.item(
+                _uuid,
+                values=(
+                        (
+                            self.project["files"][_uuid]["f_name"],
+                            self.project["files"][_uuid]["source"],
+                            self.project["files"][_uuid]["path"],
+                            self.project["files"][_uuid]["labels"],
+                            dt.datetime.fromtimestamp(self.project["files"][_uuid]["c_time"]).strftime("%Y-%m-%d %H:%M:%S")
+                        )
+                )
+            )
+        my_logger.debug(f"TheBrain: tree_pan.tree view updated.")
+
+    def save_new_order_all_labels(self, all_labels: List) -> None:
+        my_logger.debug(f"TheBrain.save_new_order_all_labels: {all_labels}")
+
+        self.history_manager.save_to_general_history("Project",
+                                                     "Project",
+                                                     {"labels": self.project["labels"]},
+                                                     )
+
+        self.project["labels"] = all_labels
+        self.save_project()
+
+        my_logger.debug(f"TheBrain.save_new_order_all_labels: {all_labels} - successful")
+
+    def add_label_to_project(self, new_label: str) -> None:
+        my_logger.debug(f"TheBrain.add_label_to_project: label: {new_label}")
+
+        labels_temp = " /// ".join(self.project["labels"]) if self.project["labels"] else ""
+
+        data_to_save = {"labels": self.project["labels"]}
+
+        self.history_manager.save_to_general_history("Project",
+                                                     "Project",
+                                                     data_to_save)
+        self.project["labels"].append(new_label)
+        self.save_project()
+
+        my_logger.debug(f"TheBrain.add_label_to_project: label: {new_label} - successful")
+
+    def move_down_tree(self) -> None:
+        my_logger.debug("TheBrain.move_down_tree")
+
+        tree = self.main_window.main_frame.tree_pan.tree
+        item = tree.focus()
+
+        next_item = tree.next(item)
+
+        self.project["files"][item]["index"], self.project["files"][next_item]["index"] \
+            = self.project["files"][next_item]["index"], self.project["files"][item]["index"]
+        self.project["files"] = dict(sorted(self.project["files"].items(), key=lambda x: x[1]["index"]))
+
+        self.save_project()
+
+        tree.move(
+            item,
+            tree.parent(item),
+            tree.index(item) + 1
+        )
+
+    def move_up_tree(self) -> None:
+        my_logger.debug("TheBrain.move_up_tree")
+
+        tree = self.main_window.main_frame.tree_pan.tree
+        item = tree.focus()
+
+        prev_item = tree.prev(item)
+
+        self.project["files"][item]["index"], self.project["files"][prev_item]["index"] \
+            = self.project["files"][prev_item]["index"], self.project["files"][item]["index"]
+
+        self.project["files"] = dict(sorted(self.project["files"].items(), key=lambda x: x[1]["index"]))
+
+        self.save_project()
+
+        tree.move(
+            item,
+            tree.parent(item),
+            tree.index(item) - 1
+        )
+
+    def open_in_default_viewer(self, path: pathlib.Path) -> None:
+        my_logger.debug("TheBrain.open_in_default_viewer")
+
+        path = self.project_path.joinpath(path)
+        my_logger.debug(f"TheBrain.open_in_default_viewer: {path}")
+        try:
+            if platform.system() == "Windows":
+                path = str(pathlib.PureWindowsPath(path))
+                os.startfile(path)
+            else:
+                os.system(path)
+        except FileNotFoundError as e:
+            my_logger.debug(f"TheBrain.open_in_default_viewer: {path} - FileNotFoundError")
+            messagebox.showerror(str(e))
+        except PermissionError as e:
+            my_logger.debug(f"TheBrain.open_in_default_viewer: {path} - PermissionError")
+            messagebox.showerror(str(e))
+
+    def open_source_in_browser(self, src: str) -> None:
+        my_logger.debug(f"TheBrain.open_source_in_browser: {src}")
+        webbrowser.open(src, new=2)
+
+    def open_in_new_browser(self, path: pathlib.Path) -> None:
+        my_logger.debug("TheBrain.open_in_new_browser")
+
+        path = self.project_path.joinpath(path)
+        my_logger.debug(f"TheBrain.open_in_new_browser: {path}")
+        webbrowser.open(str(path), new=2)
+
+    def alter_comment(self, _uuid, comment) -> None: # todo
+        self.history_manager.save_to_general_history(self.project["files"][_uuid]["f_name"], _uuid, {"comment": self.project["files"][_uuid]["comment"]})
+        my_logger.debug(f"TheBrain.alter_comment: new comment for {_uuid}: {comment}")
+
+        self.project["files"][_uuid]["comment"] = comment
+        self.save_project()
+
+    def rename_file(self, _uuid, f_name_new, path_new) -> None:
+        my_logger.debug(f"TheBrain.rename_file({_uuid}, {f_name_new}, {path_new})")
+
+        old_name = self.project["files"][_uuid]["f_name"]
+        old_path = self.project["files"][_uuid]["path"]
+
+        self.project["files"][_uuid]["f_name"] = f_name_new
+        self.project["files"][_uuid]["path"] = path_new
+
+        self.save_project()
+        self.project = self.load_project()
+
+        self.main_window.main_frame.tree_pan.tree.item(
+            _uuid,
+            values=(
+                (
+                    self.project["files"][_uuid]["f_name"],
+                    self.project["files"][_uuid]["source"],
+                    self.project["files"][_uuid]["path"],
+                    self.project["files"][_uuid]["labels"],
+                    f'{dt.datetime.fromtimestamp(int(self.project["files"][_uuid]["c_time"])):%Y-%m-%d %H:%M:%S}'
+                )
+            )
+        )
+
+        # self.main_window.main_frame.tree_pan.tree.focus(_uuid)
+        # self.main_window.main_frame.tree_pan.tree.selection_set(_uuid)
+
+        # self.main_window.main_frame.tree_pan.tree.delete(old_name)
+
+        self.history_manager.save_to_general_history(
+            self.project["files"][_uuid]["f_name"],
+            _uuid,
+            {"f_name": old_name, "path": old_path}
+        )
+
+    def rename_source(self, _uuid, source_new) -> None:
+        my_logger.debug(f"TheBrain.rename_source {_uuid}, old: {self.project["files"][_uuid]["source"]}, new: {source_new})")
+
+        old_source = self.project["files"][_uuid]["source"]
+        self.project["files"][_uuid]["source"] = source_new
+
+        self.save_project()
+
+        self.main_window.main_frame.tree_pan.tree.item(
+            _uuid,
+            values=(
+                (
+                    self.project["files"][_uuid]["f_name"],
+                    self.project["files"][_uuid]["source"],
+                    self.project["files"][_uuid]["path"],
+                    self.project["files"][_uuid]["labels"],
+                    f'{dt.datetime.fromtimestamp(int(self.project["files"][_uuid]["c_time"])):%Y-%m-%d %H:%M:%S}'
+                )
+            )
+        )
+
+        self.history_manager.save_to_general_history(
+            self.project["files"][_uuid]["f_name"],
+            _uuid,
+            {"source": old_source}
+        )
+
+    def del_file(self, _uuid: str) -> None: # todo command
+        ...
+        # my_logger.debug(f"TheBrain.del_file {file_id}")
+        #
+        # self.history_manager.del_file(file_id)
+        #
+        # self.main_window.main_frame.zoom_pan.destroy()
+        # self.main_window.main_frame.detail_pan.destroy()
+        # self.main_window.main_frame.detail_pan = DetailPan(master=self.main_window.main_frame)
+        # self.main_window.main_frame.detail_pan.grid(row=1, column=0)
+        #
+        # self.main_window.main_frame.tree_pan.tree.delete(file_id)
+
+        # todo coś żeby potem odzyskać plik?
+
+    def add_dir_view(self) -> None:
+        my_logger.debug(f"TheBrain.add_dir_view")
+
+        self.main_window.main_frame.destroy()
+        self.main_window.main_frame = AddDirView(master=self.main_window)
+
+    def add_files_view(self) -> None:
+        my_logger.debug(f"TheBrain.add_files_view")
+
+        self.main_window.main_frame.destroy()
+        self.main_window.main_frame = AddFilesView(master=self.main_window)
+
+    def manage_sources_view(self) -> None:
+        my_logger.debug(f"TheBrain.manage_sources_view")
+
+        self.main_window.main_frame.destroy()
+        self.main_window.main_frame = ManageSourcesView(master=self.main_window)
+
+    def add_files(self, f_paths: Tuple) -> None:
+        """Invoked by AddFilesView.add_files"""
+        my_logger.debug(f"TheBrain.add_files: path: {'\n'.join(f_paths)}")
+
+        f_paths = [pathlib.Path(p) for p in f_paths]
+
+        for p in f_paths:
+            # p = pathlib.Path(p)
+            if not (p.exists() or p.is_file()):
+                messagebox.showerror(title="Ścieżka do katalogu", message="Niedozwolona ścieżka do katalogu.\nJeśli chcesz dodać katalog skorzystaj z opcji 'Dodaj folder z plikami'")
+                my_logger.debug(f"TheBrain.add_files: path: {str(p)} - wrong")
                 return
 
-            path_to_img = self.master.brain.project_path.joinpath(path_to_img)
+        for p in f_paths:
+            # p = pathlib.Path(p)
+            if not p.is_absolute():
+                messagebox.showerror(title=LANG.get("wrong_path_2"), message=LANG.get("wrong_path_2_msg"))
+                return
 
-            my_logger.debug(f"ManageSourcesView.tree_selecting_item: path to img {path_to_img}")
-            self.zoom_pan.destroy()
+        target_dir = pathlib.Path(self.project_path, datetime.date.today().strftime('%Y-%m-%d'))
 
-            if self.file_pat_formats.search(path_to_img.suffix):
-                try:
-                    self.zoom_pan = ZoomPan(master=self, path_to_img=path_to_img)
-                    self.zoom_pan.grid(row=0, column=1, columnspan=2)
-                except tk.TclError as tk_error:
-                    my_logger.debug(f"ManageSourcesView.tree_selecting_item: zoom_pan error: {tk_error}")
+        if target_dir.exists():
+            target_dir = pathlib.Path(self.project_path,
+                                      target_dir.name + "_" + str(int(dt.datetime.today().timestamp())))
+
+        res = messagebox.askyesno(title=LANG.get("confirm"),
+                                  message=LANG.get("confirm_msg"))
+        if not res:
+            return
+
+        target_dir.mkdir()
+
+        for file in f_paths:
+            shutil.copy2(file, target_dir)
+
+        pro_counter = int(self.project["last_index"])
+
+        project_path_parts = self.project_path.parts
+
+        for (dpath, dirs, files) in os.walk(target_dir):
+            for file in files:
+                path = pathlib.Path(dpath, file)
+
+                path_parts = path.parts
+
+                relative_path = path_parts[len(project_path_parts) - len(path_parts):]
+                relative_path = "/".join(relative_path)
+
+                pro_counter += 1
+                self.project["files"][str(uuid.uuid1())] = {
+                    "f_name": path.name,
+                    "index": pro_counter,
+                    "source": "",
+                    "path": relative_path,
+                    # paths are cut so that user can move whole dir with project (dir with base.json and files)
+                    "labels": [],
+                    "comment": "",
+                    "extra_fields": {},
+                    "c_time": path.stat().st_mtime,
+                    "binds": [],
+                }
+
+        files_added = pro_counter - self.project["last_index"]
+
+        messagebox.showinfo(title=LANG.get("Files_added"), message=f"{files_added}{LANG.get("Files_added_msg")}")
+
+        self.project["last_index"] = pro_counter
+
+        self.save_project()
+        self.main_window.main_frame.destroy()
+        self.go_to_base_project_view(self.project_path)
+
+        self.collect_garbage()
+
+        my_logger.debug(f"TheBrain.add_files: - accomplished")
+
+    def __add_dir__ignore_patterns(self, path, names) -> List:
+        return [f for f in names if pathlib.Path(path, f).is_file() and not self.file_pat_formats.search(f)]
+
+    def __check_circular_reference(self, d_with_files_path) -> None | bool:
+        """
+        Important function: shutil.copytree in self.add_dir_view() doesn't check
+        if a destination dir includes a source dir - it prevents an infinite loop.
+        """
+        project_path = str(self.project_path)
+        d_with_files_path = str(d_with_files_path)
+        for (_dpath, dirs, files) in os.walk(d_with_files_path):
+            if _dpath == project_path:
+                messagebox.showerror(title=LANG.get("circ_ref"),
+                                     message=LANG.get("circ_ref_msg"))
+                return True
+
+    def add_dir(self, path: str, all_or_some_files_var: int) -> None:
+        """Invoked by AddDirView.add_dir"""
+        my_logger.debug(f"TheBrain.add_dir: path: {path}, all: {all_or_some_files_var}")
+
+        d_with_files_path = pathlib.Path(path)
+
+        if not d_with_files_path.is_absolute():
+            messagebox.showerror(title=LANG.get("wrong_path_2"), message=LANG.get("wrong_path_2_msg"))
+            return
+
+        if not d_with_files_path.is_dir():
+            d_with_files_path = d_with_files_path.parent
+            res = messagebox.askyesno(title=LANG.get("wrong_path_2"),
+                                      message=f"{"wrong_path_2_msg_2"} {d_with_files_path}")
+            if not res:
+                return
+
+        if self.__check_circular_reference(d_with_files_path):
+            return
+
+        target_dir = pathlib.Path(self.project_path, d_with_files_path.stem)
+
+        res = messagebox.askyesno(title=LANG.get("confirm"),
+                                  message=LANG.get("confirm_msg"))
+        if not res:
+            return
+
+        if target_dir.exists():
+            target_dir = pathlib.Path(self.project_path,
+                                      d_with_files_path.stem + str(int(dt.datetime.today().timestamp())))
+
+        if all_or_some_files_var:
+            shutil.copytree(d_with_files_path, target_dir)
+        else:
+            shutil.copytree(d_with_files_path, target_dir, ignore=self.__add_dir__ignore_patterns)
+
+        pro_counter = int(self.project["last_index"])
+
+        project_path_parts = self.project_path.parts
+
+        for (dpath, dirs, files) in os.walk(target_dir):
+            for file in files:
+                path = pathlib.Path(dpath, file)
+
+                path_parts = path.parts
+
+                relative_path = path_parts[len(project_path_parts) - len(path_parts):]
+                relative_path = "/".join(relative_path)
+
+                pro_counter += 1
+                self.project["files"][str(uuid.uuid1())] = {
+                    "f_name": path.name,
+                    "index": pro_counter,
+                    "source": "",
+                    "path": relative_path,
+                    # paths are cut so that user can move whole dir with project (dir with base.json and files)
+                    "labels": [],
+                    "comment": "",
+                    "extra_fields": {},
+                    "c_time": path.stat().st_mtime,
+                    "binds": [],
+                }
+
+        files_added = pro_counter - self.project["last_index"]
+
+        messagebox.showinfo(title=LANG.get("Files_added"), message=f"{files_added}{LANG.get("Files_added_msg")}")
+
+        self.project["last_index"] = pro_counter
+
+        self.save_project()
+        self.main_window.main_frame.destroy()
+        self.go_to_base_project_view(self.project_path)
+
+        self.collect_garbage()
+
+        my_logger.debug(f"TheBrain.add_dir: path: {path}, all: {all_or_some_files_var} - accomplished")
+
+
+    def open_project_view(self) -> None:
+        """Called by MainMenuView. Apart from setting a OpenProjectView it loads a list of previously created projects
+        """
+        self.main_window.main_frame.destroy()
+        projects_list = self.load_list_of_projects()
+        my_logger.debug(f"Projects loaded{projects_list}")
+
+        self.main_window.main_frame = OpenProjectView(master=self.main_window, projects_list=projects_list)
+
+        my_logger.debug("OpenProjectView established")
+
+    def main_menu_view(self) -> None:
+        self.main_window.main_frame.destroy()
+        self.main_window.main_frame = MainMenuView(master=self.main_window)
+
+        my_logger.debug("TheBrain.main_menu_view: MainMenuView established")
+
+    def collect_garbage(self) -> None:
+        """An automatic garbage collection is disabled in MainWindow"""
+        gc.collect()
+        my_logger.debug("TheBrain.collect_garbage: garbage collected")
+
+    # def clear_detail_and_zoom_pan(self) -> None:
+    #     self.main_window.main_frame.zoom_pan.destroy()
+    #     self.main_window.main_frame.detail_pan.destroy()
+    #     my_logger.debug("TheBrain.clear_detail_and_zoom_pan: zoom_pan and detail_pan cleared")
+
+    def enable_menubar_btns(self) -> None:
+        """Invoked by BaseProjectView.__init__"""
+        self.main_window.menu_bar.enable_buttons()
+        my_logger.debug("TheBrain.enable_menubar_btns: menu_bar buttons enabled")
+
+    def mount_detail_and_zoom_pan(self, _uuid) -> None:
+        my_logger.debug(f"TheBrain.mount_detail_and_zoom_pan: tries to load detail and zoom pans for {_uuid}")
+
+        try:
+            path_to_img = self.project["files"][_uuid]["path"]
+        except KeyError as key_error:
+            my_logger.debug(f"TheBrain.mount_detail_and_zoom_pan: zoom_pan error: {key_error}")
+            return
+
+        path_to_img = self.project_path.joinpath(path_to_img)
+
+        my_logger.debug(f"TheBrain.mount_detail_and_zoom_pan: path to img {path_to_img}")
+
+        self.main_window.main_frame.zoom_pan.destroy()
+        my_logger.debug(f"TheBrain.mount_detail_and_zoom_pan: zoom_pan destroyed")
+
+        if self.file_pat_formats.search(path_to_img.suffix):
+            try:
+                self.main_window.main_frame.zoom_pan = ZoomPan(master=self.main_window.main_frame,
+                                                               path_to_img=path_to_img)
+                self.main_window.main_frame.zoom_pan.grid(row=0, column=1)
+                my_logger.debug(f"TheBrain.mount_detail_and_zoom_pan: zoom_pan established")
+            except tk.TclError as tk_error:
+                my_logger.debug(f"TheBrain.mount_detail_and_zoom_pan: zoom_pan error: {tk_error}")
+                return
+            except KeyError as key_error:
+                my_logger.debug(f"TheBrain.mount_detail_and_zoom_pan: zoom_pan error: {key_error}")
+                return
+        else:
+            self.main_window.main_frame.zoom_pan = MyLabel(master=self.main_window.main_frame,
+                                                           text=LANG.get("Available_formats"))
+            self.main_window.main_frame.zoom_pan.grid(row=0, column=1)
+            my_logger.debug(f"TheBrain.mount_detail_and_zoom_pan: unavailable format: {path_to_img}")
+
+        self.main_window.main_frame.detail_pan.update_pan(_uuid=_uuid)
+        # self.main_window.main_frame.detail_pan= DetailPan(master=self.main_window.main_frame, file_id=file_id)
+        # self9.main_window.main_frame.detail_pan.grid(row=1, column=0)
+
+        my_logger.debug(f"TheBrain.mount_detail_and_zoom_pan: detail_pan established")
+
+        self.collect_garbage()
+
+    def go_to_base_project_view(self, project_path: pathlib.Path) -> None:
+        """Invoked by TheBrain.create_project or TheBrain.go_back_to_main_menu_or_base_pro_view.
+        Prepares TheBrain to service a project"""
+        self.project_path = project_path
+        my_logger.debug(f"TheBrain.go_to_base_project_view: {self.project_path} ready to load")
+
+        self.project = self.load_project()
+        my_logger.debug(f"TheBrain.go_to_base_project_view: {self.project_path} loaded successfully")
+
+        self.main_window.main_frame.destroy()
+        self.main_window.main_frame = BaseProjectView(master=self.main_window)
+
+    def go_back_to_main_menu_or_base_pro_view(self) -> None:
+        if self.project_path:
+            self.go_to_base_project_view(self.project_path)
+        else:
+            self.main_menu_view()
+
+    def load_list_of_projects(self) -> List:
+        """Invoked by TheBrain."""
+        cwd_path = pathlib.Path(os.getcwd())
+        check_if_project_list_exists = cwd_path.joinpath("projects_list.json").exists()
+        if check_if_project_list_exists:
+            with open(cwd_path.joinpath("projects_list.json"), mode="r") as file:
+                projects_list = json.load(file)
+
+            my_logger.debug(
+                f"TheBrain.add_project_to_list_of_projects: List of projects loaded: {cwd_path.joinpath('projects_list.json')}")
+            return projects_list["projects"]
+        my_logger.debug(
+            f"TheBrain.add_project_to_list_of_projects: List of projects does not exist: {cwd_path.joinpath('projects_list.json')}")
+        return []
+
+    def create_project(self, project_path: pathlib.Path) -> None:
+        """Invoked by NewProjectView.
+        Creates a base project file in json format.
+        Automatically adds the project to a list of projects and creates base history files
+        """
+        my_logger.debug(f"TheBrain.create_project: project_path: {project_path}")
+
+        self.project_path = project_path
+        try:
+            self.project_path.mkdir(parents=True)
+        except FileExistsError:
+            check_base_file_path = self.project_path.joinpath("base.json").exists()
+            if check_base_file_path:
+                messagebox.showerror(title=LANG.get("pro_already_created") ,
+                                     message=LANG.get("pro_already_created_msg"))
+                my_logger.debug(
+                    f"TheBrain.create_project: Project {self.project_path} already created in that location.")
+                return
+
+            check_is_dir = self.project_path.is_dir()
+            if check_is_dir:
+                res = messagebox.askyesno(title=LANG.get("path_exists"),
+                                          message=LANG.get("path_exists_msg"))
+                my_logger.debug(f"TheBrain.create_project: Path exists: {self.project_path} ")
+                if not res:
+                    my_logger.debug(f"TheBrain.create_project: Path declined: {self.project_path} ")
                     return
-                except KeyError as key_error:
-                    my_logger.debug(f"ManageSourcesView.tree_selecting_item: zoom_pan error: {key_error}")
-                    return
+                my_logger.debug(f"TheBrain.create_project: Path accepted: {self.project_path} ")
             else:
-                self.zoom_pan = MyLabel(master=self, text=LANG.get("Available_formats"))
-                self.zoom_pan.grid(row=0, column=1, columnspan=2)
-                my_logger.debug(f"TheBrain.mount_detail_and_zoom_pan: unavailable format: {path_to_img}")
+                messagebox.showerror(title=LANG.get("wrong_path"),
+                                     message=LANG.get("wrong_path_msg"))
+                my_logger.debug(f"TheBrain.create_project: Path leads to a file: {self.project_path} ")
+                return
+
+        except OSError:
+            messagebox.showerror(title=LANG.get("wrong_path_name"),
+                                 message=LANG.get("wrong_path_name_msg"))
+            my_logger.debug(f"TheBrain.create_project: Wrong path: {self.project_path}")
+            return
+
+        project_name = self.project_path.name
+
+        base_proj_data = {
+            "name": project_name,
+            "files": {},
+            "labels": [],
+            "last_index": 0,
+            "sources": [],
+            "binds": {},
+            "last_id_binds": 0,
+            "dist_schemas": {},
+            "del_files": {},
+        }
+
+        self.project = base_proj_data
+
+        try:
+            self.save_project()
+            self.add_project_to_list_of_projects()
+
+            self.history_manager.create_history_dir()
+            self.history_manager.create_general_history_file()
+            my_logger.debug(f"TheBrain.create_project: Project {self.project_path} created successfully")
+            my_logger.debug(f"TheBrain.create_project: Go to go_to_base_project_view(self.project_path)")
+
+            self.go_to_base_project_view(self.project_path)
+        except FileExistsError:
+            messagebox.showerror(title=LANG.get("Unable_to_save"), message=LANG.get("Unable_to_save_msg"))
+            my_logger.debug(f"TheBrain.create_project: Project {self.project_path} not created - FileExistsError")
+
+    def add_project_to_list_of_projects(self) -> None:
+        """Invoked by TheBrain.create_project"""
+        cwd_path = pathlib.Path(os.getcwd())
+        check_if_project_list_exists = cwd_path.joinpath("projects_list.json").exists()
+        if check_if_project_list_exists:
+            with open(cwd_path.joinpath("projects_list.json"), mode="r") as file:
+                projects_list = json.load(file)
+            projects_list["projects"].append(str(self.project_path))
+            my_logger.debug(
+                f"TheBrain.add_project_to_list_of_projects: List of projects is going to be updated: {cwd_path.joinpath('projects_list.json')}")
 
-            self.master.brain.collect_garbage()
-
-    def add_sources_to_project(self):
-        new_sources = self.add_sources_textbox.get("1.0", tk.END).split("\n")
-        new_sources = dict.fromkeys(new_sources, None)
-
-        self.master.brain.project["sources"] += new_sources.keys()
-        no_duplicates = dict.fromkeys(self.master.brain.project["sources"], None)
-        self.master.brain.project["sources"] = list(no_duplicates.keys())
-        self.master.brain.save_project()
-
-        self.sources_listbox.delete(0, tk.END)
-        self.sources_listbox.insert(tk.END, *self.master.brain.project["sources"])
-
-    def del_sources_from_project(self):
-        index = self.sources_listbox.curselection()
-        if index:
-            index = index[0]
-            source = self.sources_listbox.get(index)
-
-            self.master.brain.project["sources"].remove(source)
-            self.master.brain.save_project()
-
-            self.sources_listbox.delete(index)
-
-    def add_sources(self):
-        source_index = self.sources_listbox.curselection()
-        _uuid = self.files_tree.focus()
-
-        if source_index and _uuid:
-            new_source = self.sources_listbox.get(source_index[0])
-
-            self.master.brain.project["files"][_uuid]["source"] = new_source
-            self.master.brain.save_project()
-
-            self.files_tree.item(
-                _uuid,
-                values=(
-                    (
-                        self.master.brain.project["files"][_uuid]["f_name"],
-                        self.master.brain.project["files"][_uuid]["source"],
-                    )
-                )
-            )
-
-    def del_sources(self):
-        _uuid = self.files_tree.focus()
-
-        if _uuid:
-            self.master.brain.project["files"][_uuid]["source"] = ""
-            self.master.brain.save_project()
-
-            self.files_tree.item(
-                _uuid,
-                values=(
-                    (
-                        self.master.brain.project["files"][_uuid]["f_name"],
-                        self.master.brain.project["files"][_uuid]["source"],
-                    )
-                )
-            )
-
-    def go_back(self):
-        self.master.brain.go_to_base_project_view(self.master.brain.project_path)
-
-
-@log_exception_decorator(log_exception)
-class AddFilesView(MyFrame):
-    def __init__(self, *args, **kwargs) -> None:
-        super().__init__(*args, **kwargs)
-
-        self.grid()
-        # self.file_pat_formats = self.master.brain.file_pat_formats
-        # self.file_pat_formats = re.compile(r"(.png$|.jpg$|.jpeg$|.pdf$)", flags=re.IGNORECASE)
-        # self.project = None
-        # self.project_path = None
-        self.f_paths = tuple()
-
-        self.columnconfigure((0, 2), weight=1)
-        self.columnconfigure(1, weight=0, minsize=750)
-        self.rowconfigure((0, 5), weight=1)
-        self.rowconfigure((1, 2, 3, 4), weight=0)
-
-        MyLabel(master=self, text=LANG.get("add_selected_files")).grid(column=0, row=0, columnspan=3, sticky=tk.S)
-        MyLabel(master=self, text=LANG.get("sel_dir")).grid(column=0, row=1, sticky=tk.E)
-
-        self.listbox_selected_files = MyListbox(master=self)
-        self.listbox_selected_files.grid(column=1, row=1, sticky=tk.NSEW)
-
-        MyButton(master=self, text=LANG.get("browse"), command=self.browse).grid(column=2, row=1, sticky=tk.W)
-
-        MyButton(master=self, text=LANG.get("go_back"), command=self.go_back).grid(column=0, row=4, sticky=tk.E)
-        MyButton(master=self, text=LANG.get("add_files"), command=self.add_files).grid(column=2, row=4, sticky=tk.W)
-
-        my_logger.debug("AddFilesView initiated successfully")
-
-    def browse(self):
-        my_logger.debug("AddFilesView.browse: waiting for a dir to select")
-        # dialog = MyDialogWindow_AskDir(self.d_path, title="Select a directory with files to add")
-        # self.master.brain.main_window.wait_window(dialog)
-
-        # ask_dir = filedialog.askdirectory(initialdir=os.getcwd(), title=LANG.get("sel_dir_with_files"))
-        ask_dir = filedialog.askopenfilenames(initialdir=os.getcwd(), title="Select a directory with files to add", multiple=True)
-        if ask_dir:
-            self.listbox_selected_files.delete("0", tk.END)
-            self.listbox_selected_files.insert(tk.END, *ask_dir)
-            my_logger.debug(f"AddFilesView.browse: selected: {'\n'.join(ask_dir)}")
-            self.f_paths = ask_dir
-
-    def go_back(self):
-        my_logger.debug("AddFilesView.go_back: go back to self.master.brain.go_to_base_project_view(self.master.brain.project_path)")
-        self.master.brain.go_to_base_project_view(self.master.brain.project_path)
-
-    def add_files(self):
-        my_logger.debug(f"AddFilesView.add_files: self.master.brain.add_files({'\n'.join(self.f_paths)}")
-        self.master.brain.add_files(self.f_paths)
-
-
-@log_exception_decorator(log_exception)
-class AddDirView(MyFrame):
-    """Allows adding dirs with files to a project
-    """
-    def __init__(self, *args, **kwargs) -> None:
-        super().__init__(*args, **kwargs)
-
-        self.grid()
-        self.file_pat_formats = self.master.brain.file_pat_formats
-        # self.file_pat_formats = re.compile(r"(.png$|.jpg$|.jpeg$|.pdf$)", flags=re.IGNORECASE)
-        self.project = None
-        self.project_path = None
-        self.d_path = tk.StringVar()
-
-        self.columnconfigure((0, 2), weight=1)
-        self.columnconfigure(1, weight=0, minsize=550)
-        self.rowconfigure((0, 5), weight=1)
-        self.rowconfigure((1, 2, 3, 4), weight=0)
-
-        MyLabel(master=self, text=LANG.get("add_files_from_dir")).grid(column=0, row=0, columnspan=3, sticky=tk.S)
-        MyLabel(master=self, text=LANG.get("sel_dir")).grid(column=0, row=1, sticky=tk.E)
-
-        self.ent_selected_directory = MyEntry(master=self, textvariable=self.d_path, width=500)
-        self.ent_selected_directory.grid(column=1, row=1)
-
-        MyButton(master=self, text=LANG.get("browse"), command=self.browse).grid(column=2, row=1, sticky=tk.W)
-
-        MyLabel(master=self, text=LANG.get("options")).grid(column=1, row=2)
-
-        self.all_or_some_files_var = tk.IntVar()
-
-        self.copy_all_files = MyRadiobutton(master=self,
-                                            text=LANG.get("copy_all_files"),
-                                            variable=self.all_or_some_files_var,
-                                            value=1)
-        self.copy_all_files.grid(column=1, row=3)
-        self.copy_all_files.select()
-
-        self.copy_some_files = MyRadiobutton(master=self,
-                                             text=LANG.get("copy_only"),
-                                             variable=self.all_or_some_files_var,
-                                             value=0)
-        self.copy_some_files.grid(column=1, row=4)
-
-        MyButton(master=self, text=LANG.get("go_back"), command=self.go_back).grid(column=0, row=4, sticky=tk.E)
-        MyButton(master=self, text=LANG.get("add_files"), command=self.add_dir).grid(column=2, row=4, sticky=tk.W)
-
-        my_logger.debug("AddDirView initiated successfully")
-
-    def browse(self):
-        my_logger.debug("AddDirView.browse: waiting for a dir to select")
-        # dialog = MyDialogWindow_AskDir(self.d_path, title="Select a directory with files to add")
-        # self.master.brain.main_window.wait_window(dialog)
-
-        ask_dir = filedialog.askdirectory(initialdir=os.getcwd(), title=LANG.get("sel_dir_with_files"))
-        # ask_dir = filedialog.askopenfilenames(initialdir=os.getcwd(), title="Select a directory with files to add", multiple=True)
-        if ask_dir:
-            self.d_path.set(ask_dir)
-            my_logger.debug(f"AddDirView.browse: selected: {self.d_path.get()}")
-
-    def go_back(self):
-        my_logger.debug("AddDirView.go_back: go back to self.master.brain.go_to_base_project_view(self.master.brain.project_path)")
-        self.master.brain.go_to_base_project_view(self.master.brain.project_path)
-
-    def add_dir(self):
-        my_logger.debug(f"AddDirView.add_dir: self.master.brain.add_dir({self.d_path.get()}, {self.all_or_some_files_var.get()}")
-        self.master.brain.add_dir(self.d_path.get(), self.all_or_some_files_var.get())
-
-
-@log_exception_decorator(log_exception)
-class BaseProjectView(MyFrame):
-    def __init__(self, *args, **kwargs) -> None:
-        super().__init__(*args, **kwargs)
-        self.grid()
-        self.master.title(f'{LANG.get("title")}: {self.master.brain.project_path}')
-
-        self.brain = self.master.brain
-
-        # self.columnconfigure(0, weight=1, minsize=500)
-        # self.columnconfigure(1, weight=1, minsize=800)
-        #
-        # self.rowconfigure(0, weight=1, minsize=1000)
-        # self.rowconfigure(1, weight=1)
-
-        self.columnconfigure(0, weight=1, )
-        self.columnconfigure(1, weight=1, )
-
-        self.rowconfigure(0, weight=1, )
-        self.rowconfigure(1, weight=0, )
-
-        # self.menu_bar = MenuBar(master=self)
-        self.brain.enable_menubar_btns()
-
-        self.tree_pan = TreePan(master=self)
-        self.tree_pan.grid(row=0, column=0)
-
-        self.detail_pan = DetailPan(master=self)
-        self.detail_pan.grid(row=1, column=0)
-
-        self.zoom_pan = MyLabel(master=self, text="Zoom Pan")
-        self.zoom_pan.grid(row=0, column=1)
-
-        self.rotating_pan = RotatingPan(master=self)
-        self.rotating_pan.grid(row=1, column=1)
-
-        my_logger.debug("BaseProjectView initiated successfully")
-
-
-@log_exception_decorator(log_exception)
-class OpenProjectView(MyFrame):
-    def __init__(self, projects_list=None, *args, **kwargs) -> None:
-        super().__init__(*args, **kwargs)
-
-        self.projects_list = projects_list
-
-        self.project_path = tk.StringVar()
-
-        self.grid()
-        self.columnconfigure((0, 2), weight=1)
-        self.columnconfigure(1, weight=0, minsize=550)
-        self.rowconfigure((0, 3), weight=1)
-        self.rowconfigure(1, weight=0, minsize=200)
-        self.rowconfigure(2, weight=0, minsize=50)
-
-        MyLabel(master=self, text=LANG.get("open_pro")).grid(column=0, row=0, columnspan=3, sticky=tk.S)
-
-        self.list_of_projects = MyListbox(master=self)
-        self.list_of_projects.grid(column=1, row=1)
-
-        self.list_of_projects.insert(tk.END, *projects_list)
-        self.list_of_projects.bind("<<ListboxSelect>>", self.listbox_select)
-
-        MyLabel(master=self, text=LANG.get("sel_project")).grid(column=0, row=2, sticky=tk.E)
-
-        self.ent_selected_project = MyEntry(master=self, textvariable=self.project_path, width=500)
-        self.ent_selected_project.grid(column=1, row=2)
-
-        MyButton(master=self, text=LANG.get("browse"), command=self.browse).grid(column=2, row=2, sticky=tk.W)
-        MyButton(master=self, text=LANG.get("go_back"), command=self.go_back).grid(column=0, row=3, sticky=tk.NE)
-        MyButton(master=self, text=LANG.get("open_pro"), command=self.go_to_base_project_view).grid(column=2, row=3, sticky=tk.NW)
-
-    def listbox_select(self, event) -> None:
-        index = self.list_of_projects.curselection()
-        if index:
-            self.project_path.set(self.list_of_projects.get(index[0]))
-
-    def browse(self) -> None:
-        # MyDialogWindow_AskDir(self.project_path, title="Select a directory with a project")
-        ask_dir = filedialog.askdirectory(initialdir=os.getcwd(), title=LANG.get("sel_dir_proj"))
-        if ask_dir:
-            self.project_path.set(ask_dir)
-            my_logger.debug(f"AddFilesFromDirView.browse: selected: {self.project_path.get()}")
-
-    def go_back(self) -> None:
-        self.master.brain.go_back_to_main_menu_or_base_pro_view()
-
-    def go_to_base_project_view(self) -> None:
-
-        project_path = pathlib.Path(self.project_path.get())
-
-        if project_path.joinpath("base.json").exists():
-            self.master.brain.go_to_base_project_view(project_path)
         else:
-            messagebox.showerror(title="Wrong directory", message="A directory must contain base.json file to be 'a project'. Selected folder does not include base.json file.")
+            projects_list = {"projects": [str(self.project_path)]}
+            my_logger.debug(
+                f"TheBrain.add_project_to_list_of_projects: List of projects is going to be created: {cwd_path.joinpath('projects_list.json')}")
+
+        with open(cwd_path.joinpath("projects_list.json"), mode="w") as file:
+            json.dump(projects_list, file, indent=4)
+
+        my_logger.debug(
+            f"TheBrain.add_project_to_list_of_projects: List of projects created/updated: {cwd_path.joinpath('projects_list.json')}")
 
 
-@log_exception_decorator(log_exception)
-class NewProjectView(MyFrame):
-    """A new project menu.
-    """
-    def __init__(self, *args, **kwargs) -> None:
-        """Called by TheBrain.new_project_view()"""
-        super().__init__(*args, **kwargs)
+    def new_project_view(self) -> None:
+        """Invoked by MainMenuView.
+        Switches MainMenuView to NewProjectView"""
+        self.main_window.main_frame.destroy()
+        self.main_window.main_frame = NewProjectView(master=self.main_window)
 
-        self.grid()
-        self.columnconfigure((0, 2), weight=1)
-        self.columnconfigure((1), weight=0, minsize=550)
-        self.rowconfigure((0, 2), weight=1)
-        self.rowconfigure((1), weight=0, minsize=50)
+        my_logger.debug("TheBrain.new_project_view: NewProjectView established")
 
-        self.d_path = tk.StringVar(master=self)
-        self.d_path.set(os.getcwd())
+    def load_project(self) -> Dict:
+        with open(self.project_path.joinpath("base.json"), mode="r") as f:
+            self.project = json.load(f)
+        my_logger.debug(f"TheBrain.load_project(): {self.project_path} loaded successfully")
+        return self.project
 
-        MyLabel(master=self, text=LANG.get("new_pro_info")).grid(column=0, row=0, columnspan=3, sticky=tk.S)
-        MyLabel(master=self, text=LANG.get("sel_location")).grid(column=0, row=1, sticky=tk.E)
-
-        self.ent_project_path = MyEntry(master=self, textvariable=self.d_path, width=500)
-        self.ent_project_path.grid(column=1, row=1)
-
-        MyButton(master=self, text=LANG.get("chang_location"), command=self.change_location).grid(column=2, row=1, sticky=tk.W)
-        MyButton(master=self, text=LANG.get("go_back"), command=self.go_back).grid(column=0, row=2, sticky=tk.NE)
-        MyButton(master=self, text=LANG.get("new_pro"), command=self.create_project).grid(column=2, row=2, sticky=tk.NW)
-
-        my_logger.debug("NewProjectView created successfully")
-
-    def change_location(self) -> None:
-        """Opens a new dialog window.
-        """
-        # MyDialogWindow_AskDir_CreateDir(string_var_to_set_path=self.d_path, title="Select a directory to set a project")
-        ask_dir = filedialog.askdirectory(initialdir=self.d_path.get(), mustexist=False, title="Select a directory to set a project")
-        if ask_dir:
-            self.d_path.set(ask_dir)
-
-    def create_project(self) -> None:
-        """Go to self.master.brain.create_project(temp_path)
-        """
-        temp_path = pathlib.Path(self.d_path.get())
-        if temp_path.is_absolute():
-            my_logger.debug(f"Go to self.master.brain.create_project({temp_path})")
-            self.master.brain.create_project(temp_path)
-        else:
-            my_logger.debug(f"Wrong path : {temp_path}")
-            messagebox.showerror(title="Wrong path", message="Pass an absolute path, eg. C:\\My documents\\Files...")
-
-    def go_back(self) -> None:
-        self.master.brain.go_back_to_main_menu_or_base_pro_view() # change in the brain: if self.project is set ->
-                                            # go back to base pro view (keep the same view -> load from Temp_layer?
-
-
-@log_exception_decorator(log_exception)
-class MainMenuView(MyFrame):
-    """Main menu window - here we start our journey.
-    This is the first object placed in root window (MainWindow).
-    It's just a standard menu. All functions refer to TheBrain which directs traffic between windows, panels and project files.
-    You can go back to the MainMenuView any time - use menu bar.
-    """
-    def __init__(self, *args, **kwargs) -> None:
-        super().__init__(*args, **kwargs)
-
-        self.grid()
-
-        self.menu = MyFrame(master=self)
-        self.menu.grid()
-
-        self.menu.rowconfigure((0, 1, 2, 3), weight=0, minsize=40)
-        self.menu.columnconfigure(0, weight=1)
-
-        MyButton(master=self.menu, text=LANG.get("new_pro"), command=self.new_project).grid(padx=10, pady=10)
-        MyButton(master=self.menu, text=LANG.get("open_pro"), command=self.open_project).grid(padx=10, pady=10)
-        MyButton(master=self.menu, text=LANG.get("quit"), command=self.close).grid(padx=10, pady=10)
-
-        my_logger.debug("MainMenuView initiated successfully")
-
-    def new_project(self) -> None:
-        """goes to self.master.brain.new_project_view()"""
-        my_logger.debug("MainMenuView - goes to self.master.brain.new_project_view()")
-        self.master.brain.new_project_view()
-
-    def open_project(self) -> None:
-        """goes to self.master.brain.open_project_view()"""
-        my_logger.debug("MainMenuView - goes to self.master.brain.open_project_view()")
-        self.master.brain.open_project_view()
-
-    def settings(self) -> None:
-        """goes to self.master.brain.settings_view()"""
-        my_logger.debug("MainMenuView - goes to self.master.brain.settings_view()")
-        self.master.brain.settings_view()
-
-    def close(self) -> None:
-        """goes to self.destroy(); self.master.destroy()"""
-        my_logger.debug("MainMenuView - goes to self.destroy(); self.master.destroy()")
-        self.destroy()
-        self.master.destroy()
+    def save_project(self) -> None:
+        with open(self.project_path.joinpath("base.json"), mode="w") as file:
+            json.dump(self.project, file, indent=4)
+        my_logger.debug(f"TheBrain.save_project(): {self.project_path} saved successfully")
