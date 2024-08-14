@@ -1,3 +1,4 @@
+import json
 import os
 import pathlib
 import shutil
@@ -44,10 +45,10 @@ class TreePan(MyFrame):
         self.style.configure("Treeview.Heading", font=(None, 18))
         self.style.configure("Treeview", font=(None, 18), rowheight=28)
 
-        columns = ("index", "source", "path", "labels", "c_time")
+        columns = ("f_name", "source", "path", "labels", "c_time")
         self.tree.configure(columns=columns)
 
-        self.tree.heading("index", text=LANG.get("index"))
+        self.tree.heading("f_name", text=LANG.get("f_name"))
         self.tree.heading("source", text=LANG.get("source"))
         self.tree.heading("path", text=LANG.get("path"))
         self.tree.heading("labels", text=LANG.get("labels"))
@@ -69,50 +70,50 @@ class TreePan(MyFrame):
         my_logger.debug("TreePan initiated")
 
     def populate(self, filtered_file_ids=None) -> None:
-        """Important note: tree iids = file_ids.
+        """Important note: tree iids = uuids.
         Method support filtering as well.
         """
         self.tree.delete(*self.tree.get_children())
 
         if not filtered_file_ids:
-            for file_id, data in self.master.brain.project["files"].items():
+            for _uuid, data in self.master.brain.project["files"].items():
                 self.tree.insert(
                     "",
                     tk.END,
-                    iid=file_id,
+                    iid=_uuid,
                     values=(
-                        file_id,
+                        data.get("f_name"),
                         data.get("source"),
                         data.get("path"),
-                        data.get("labels"),
-                        f"{dt.datetime.fromtimestamp(int(data.get('c_time'))): %Y-%m-%d %H:%M:%S}"
+                        data.get("labels"), # todo (prawodpodobnie tutaj i niżej wpadają {})
+                        f"{dt.datetime.fromtimestamp(int(data.get('c_time'))):%Y-%m-%d %H:%M:%S}"
                     )
                 )
         else:
-            for file_id in filtered_file_ids:
-                data = self.master.brain.project["files"][file_id]
+            for _uuid in filtered_file_ids:
+                data = self.master.brain.project["files"][_uuid]
                 self.tree.insert(
                     "",
                     tk.END,
-                    iid=file_id,
+                    iid=_uuid,
                     values=(
-                        file_id,
+                        data.get("f_name"),
                         data.get("source"),
                         data.get("path"),
                         data.get("labels"),
-                        f"{dt.datetime.fromtimestamp(int(data.get('c_time'))): %Y-%m-%d %H:%M:%S}"
+                        f"{dt.datetime.fromtimestamp(int(data.get('c_time'))):%Y-%m-%d %H:%M:%S}"
                     )
                 )
 
         my_logger.debug("TreePan.populate - done.")
 
     def selecting_item(self, event) -> None:
-        """Important note: tree iids = file_ids"""
-        item_index = self.tree.focus()
+        """Important note: tree iids = uuids"""
+        item_index_uuid = self.tree.focus()
 
-        my_logger.debug(f"TreePan.selecting item for {item_index}")
+        my_logger.debug(f"TreePan.selecting item for {item_index_uuid}")
 
-        self.master.brain.mount_detail_and_zoom_pan(file_id=item_index)
+        self.master.brain.mount_detail_and_zoom_pan(_uuid=item_index_uuid)
 
 
 @log_exception_decorator(log_exception)
@@ -142,10 +143,14 @@ class DetailPan(MyFrame):
         for row in range(8):
             self.rowconfigure(row, weight=0)
 
-        self.file_id: str | None = None
+        self._uuid: str = ""
         self.file_data: Dict | None = None
 
-        self._uuid: str = ""
+        self.f_name: str = LANG.get("choose_file")
+        self.f_name_var = tk.StringVar(master=self)
+        self.f_name_var.set(self.f_name)
+
+        self.id: int = 0
 
         self.source: str = ""
         self.source_var = tk.StringVar(master=self)
@@ -160,7 +165,7 @@ class DetailPan(MyFrame):
         self.main_options_pan = MyFrame(master=self)
         self.main_options_pan.grid(row=0, column=0, columnspan=3)
         self.main_options_pan.rowconfigure(0, weight=0)
-        self.main_options_pan.columnconfigure((0, 1, 2, 3, 4, 5), weight=1)
+        self.main_options_pan.columnconfigure((0, 1, 2, 3), weight=1)
 
         self.btn_del_file = MyButton(master=self.main_options_pan, text=LANG.get("del_file"),
                                      command=self.del_file, state=tk.DISABLED, hover=True)
@@ -170,37 +175,17 @@ class DetailPan(MyFrame):
                                                    command=self.open_in_default_viewer, state=tk.DISABLED, hover=True)
         self.btn_open_in_default_viewer.grid(row=0, column=1)
 
-        self.btn_open_in_new_window_pan = MyButton(master=self.main_options_pan, text=LANG.get("open_in_new_detail_pan"),
-                                                   command=self.open_in_new_window_pan, state=tk.DISABLED, hover=True)
-        self.btn_open_in_new_window_pan.grid(row=0, column=2)
-
         self.btn_move_up_tree = MyButton(master=self.main_options_pan, text=LANG.get("move_up"),
                                          command=self.move_up_tree, state=tk.DISABLED, hover=True)
-        self.btn_move_up_tree.grid(row=0, column=3)
+        self.btn_move_up_tree.grid(row=0, column=2)
 
         self.btn_move_down_tree = MyButton(master=self.main_options_pan, text=LANG.get("move_down"),
                                            command=self.move_down_tree, state=tk.DISABLED, hover=True)
-        self.btn_move_down_tree.grid(row=0, column=4)
+        self.btn_move_down_tree.grid(row=0, column=3)
 
-        MyLabel(master=self, text=LANG.get("id")).grid(row=1, column=0)
+        MyLabel(master=self, text=LANG.get("f_name")).grid(row=1, column=0)
 
-        self.id_pan = MyFrame(master=self)
-        self.id_pan.grid(row=1, column=1)
-        self.id_pan.rowconfigure(0)
-        self.id_pan.columnconfigure(0, weight=0)
-        self.id_pan.columnconfigure(1, weight=1)
-
-        self.id, self.f_name = "  - Choose a file from a list above".split(" - ", 1)  # to do dodania też w update()
-
-        self.id_var = tk.StringVar(master=self)
-        self.id_var.set(self.id)
-
-        self.f_name_var = tk.StringVar(master=self)
-        self.f_name_var.set(self.f_name)
-
-        MyLabel(master=self.id_pan, textvariable=self.id_var).grid(row=1, column=0)
-
-        self.ent_name = MyEntry(master=self.id_pan, textvariable=self.f_name_var)
+        self.ent_name = MyEntry(master=self, textvariable=self.f_name_var)
         self.ent_name.grid(row=1, column=1, sticky=tk.EW)
 
         self.btn_rename_file = MyButton(master=self, text=LANG.get("f_rename"),
@@ -209,22 +194,21 @@ class DetailPan(MyFrame):
 
         MyLabel(master=self, text=LANG.get("source")).grid(row=2, column=0)
 
-        self.ent_src = MyEntry(master=self, textvariable=self.source_var)
-        # self.ent_src.insert(tk.END, self.source)
-        self.ent_src.grid(row=2, column=1, sticky=tk.EW)
-
         self.source_pan = MyFrame(master=self)
-        self.source_pan.grid(row=2, column=2)
+        self.source_pan.grid(row=2, column=1, columnspan=2)
         self.source_pan.rowconfigure((0, 1), weight=0)
-        self.source_pan.columnconfigure(0, weight=0)
+        self.source_pan.columnconfigure((0, 1), weight=1)
+
+        self.ent_src = MyEntry(master=self.source_pan, textvariable=self.source_var)
+        self.ent_src.grid(row=0, column=0, columnspan=2, sticky=tk.EW)
 
         self.btn_rename_source = MyButton(master=self.source_pan, text=LANG.get("s_rename"),
                                           command=self.rename_source, state=tk.DISABLED, hover=True)
-        self.btn_rename_source.grid(row=0, column=0)
+        self.btn_rename_source.grid(row=1, column=0)
 
         self.btn_open_source_in_browser = MyButton(master=self.source_pan, text=LANG.get("open_src_browser"),
                                                    command=self.open_source_in_browser, state=tk.DISABLED, hover=True)
-        self.btn_open_source_in_browser.grid(row=1, column=0)
+        self.btn_open_source_in_browser.grid(row=1, column=1)
 
         MyLabel(master=self, text=LANG.get("path")).grid(row=3, column=0)
 
@@ -233,10 +217,6 @@ class DetailPan(MyFrame):
 
         self.lbl_path = MyLabel(master=self, textvariable=self.path_var, width=100)
         self.lbl_path.grid(row=3, column=1)
-
-        self.btn_open_in_default = MyButton(master=self, text=LANG.get("open_file_in_def"),
-                                                command=self.open_in_default, state=tk.DISABLED, hover=True)
-        self.btn_open_in_default.grid(row=3, column=2)
 
         MyLabel(master=self, text=LANG.get("labels")).grid(row=4, column=0)
 
@@ -251,19 +231,19 @@ class DetailPan(MyFrame):
         MyLabel(master=self.frame_lbls_btns, text=LANG.get("manage_labels")).grid(row=0, column=0)
 
         self.btn_add_labels_to_file = MyButton(master=self.frame_lbls_btns, text=LANG.get("add_labels"),
-                                               command=self.add_labels_to_file, state=tk.DISABLED, hover=True)
+                                               command=self.add_labels_to_file, state=tk.DISABLED, hover=True) # todo
         self.btn_add_labels_to_file.grid(row=1, column=0, sticky=tk.S)
 
         self.btn_remove_labels = MyButton(master=self.frame_lbls_btns, text=LANG.get("rem_labels"),
-                                          command=self.remove_labels, state=tk.DISABLED, hover=True)
+                                          command=self.remove_labels, state=tk.DISABLED, hover=True) # todo
         self.btn_remove_labels.grid(row=2, column=0)
 
         self.btn_move_lbl_up = MyButton(master=self.frame_lbls_btns, text=LANG.get("move_up"),
-                                        command=self.move_lbl_up, state=tk.DISABLED, hover=True)
+                                        command=self.move_lbl_up, state=tk.DISABLED, hover=True) # todo
         self.btn_move_lbl_up.grid(row=3, column=0)
 
         self.btn_move_lbl_down = MyButton(master=self.frame_lbls_btns, text=LANG.get("move_down"),
-                                          command=self.move_lbl_down, state=tk.DISABLED, hover=True)
+                                          command=self.move_lbl_down, state=tk.DISABLED, hover=True) # todo
         self.btn_move_lbl_down.grid(row=4, column=0, sticky=tk.N)
 
         MyLabel(master=self, text=LANG.get("comment")).grid(row=5, column=0)
@@ -272,7 +252,7 @@ class DetailPan(MyFrame):
         self.tbox_com.grid(row=5, column=1, sticky=tk.EW)
 
         self.btn_alter_comment = MyButton(master=self, text=LANG.get("alter_comment"),
-                                          command=self.alter_comment, state=tk.DISABLED, hover=True)
+                                          command=self.alter_comment, state=tk.DISABLED, hover=True) # todo
         self.btn_alter_comment.grid(row=5, column=2)
 
         MyLabel(master=self, text=LANG.get("c_time")).grid(row=7, column=0)
@@ -283,17 +263,15 @@ class DetailPan(MyFrame):
         lbl_ctime = MyLabel(master=self, textvariable=self.c_time_var, width=100)
         lbl_ctime.grid(row=7, column=1)
 
-    def update_pan(self, file_id: str) -> None:
-        self.file_id = file_id
+    def update_pan(self, _uuid: str) -> None:
+        self._uuid = _uuid
 
-        self.file_id: str = file_id
+        self.file_data = self.master.brain.project["files"][self._uuid]
 
-        self.id, self.f_name = self.file_id.split(" - ", 1)
-        self.id_var.set(self.id)
+        self.f_name = self.file_data["f_name"]
         self.f_name_var.set(self.f_name)
 
-        self.file_data = self.master.brain.project["files"][self.file_id]
-        self._uuid = self.file_data["uuid"]
+        self.id = self.file_data["index"]
 
         self.source = self.file_data["source"]
         self.source_var.set(self.source)
@@ -321,69 +299,35 @@ class DetailPan(MyFrame):
 
         self.btn_del_file.configure(state=tk.NORMAL, hover=True)
         self.btn_open_in_default_viewer.configure(state=tk.NORMAL, hover=True)
-        self.btn_open_in_new_window_pan.configure(state=tk.NORMAL, hover=True)
         self.btn_move_up_tree.configure(state=tk.NORMAL, hover=True)
         self.btn_move_down_tree.configure(state=tk.NORMAL, hover=True)
         self.btn_rename_file.configure(state=tk.NORMAL, hover=True)
         self.btn_rename_source.configure(state=tk.NORMAL, hover=True)
         self.btn_open_source_in_browser.configure(state=tk.NORMAL, hover=True)
-        self.btn_open_in_default.configure(state=tk.NORMAL, hover=True)
         self.btn_add_labels_to_file.configure(state=tk.NORMAL, hover=True)
         self.btn_remove_labels.configure(state=tk.NORMAL, hover=True)
         self.btn_move_lbl_up.configure(state=tk.NORMAL, hover=True)
         self.btn_move_lbl_down.configure(state=tk.NORMAL, hover=True)
         self.btn_alter_comment.configure(state=tk.NORMAL, hover=True)
 
-        my_logger.debug(f"DetailPan.update_pan for {self.file_id}")
+        my_logger.debug(f"DetailPan.update_pan for {self._uuid}: {self.f_name}")
 
-    def update_fields(self, key: str, value: str | List) -> None:
-        if key == "labels":
-            self.lbls_listbox.delete(0, tk.END)
-            self.lbls_listbox.insert(tk.END, *value.split(" /// "))
-        elif key == "comment":
-            self.tbox_com.delete("1.0", tk.END)
-            self.tbox_com.insert("1.0", value)
-        else:
-            ...
+    def del_file(self) -> None:  # todo command
+        self.master.brain.del_file(self._uuid)
 
-        my_logger.debug(f"DetailPan.update_fields: {self.file_id}: {key}: {value} - updated")
-
-    def add_labels_to_file(self) -> None:
-        self.master.brain.add_labels_to_file(self)
-
-    def move_down_tree(self) -> None:
-        self.master.brain.move_down_tree()
+    def open_in_default_viewer(self) -> None:
+        self.master.brain.open_in_default_viewer(self.path)
 
     def move_up_tree(self) -> None:
         self.master.brain.move_up_tree()
 
-    def open_in_new_window_pan(self) -> None:
-        self.master.brain.open_in_new_window_pan()
-
-    def open_in_default_viewer(self) -> None:
-        self.master.brain.open_in_default_viewer(self.path)
-        # sh: 1: / home / tomasz / PycharmProjects / sekretarz / 2 / foto / skierowanie: not found
-        # sh: 1: / home / tomasz / PycharmProjects / sekretarz / 2 / foto / 62662726 as.png: Permission
-        # denied
-        # sh: 1: / home / tomasz / PycharmProjects / sekretarz / 2 / foto / Nikon - D750 - Image - Samples - 2.j
-        # pg: Permission
-        # denied
-        # path = self.master.brain.project_path.joinpath(self.path) # moved to th brain
-        # os.system(path)
-
-    def open_source_in_browser(self) -> None:  # moved to th brain
-        self.master.brain.open_source_in_browser(self.source_var.get())
-
-    def open_in_default(self) -> None:  # moved to th brain
-        self.master.brain.open_in_default_viewer(self.path)
-
-    def del_file(self) -> None:
-        self.master.brain.del_file(self.file_id)
+    def move_down_tree(self) -> None:
+        self.master.brain.move_down_tree()
 
     def rename_file(self) -> None:
         n_name = self.f_name_var.get()
 
-        my_logger.debug(f"DetailPan.rename_file for {self.file_id}, new: {n_name} - initiated")
+        my_logger.debug(f"DetailPan.rename_file for {self._uuid}: {self.f_name}, new: {n_name} - initiated")
 
         if not n_name.endswith(pathlib.Path(self.path).suffix):
             messagebox.showerror(master=self, title=LANG.get("f_rename"), message=LANG.get("f_name_wrong_suffix"))
@@ -408,24 +352,10 @@ class DetailPan(MyFrame):
                 self.f_name = n_name
                 self.f_name_var.set(self.f_name)
 
-                new_name_with_data = f"{self.id} - {self.f_name}"
-
-                old_name, self.file_id = self.file_id, new_name_with_data
-
                 self.master.brain.rename_file(
-                    old_name,
-                    self.file_id,
-                    {
-                        "uuid": self.uuid,
-                        "index": int(self.id),
-                        "source": self.source,
-                        "path": self.path,
-                        "labels": self.labels,
-                        "comment": self.comment,
-                        "extra_fields": self.extra_fields,
-                        "c_time": self.c_time,
-                        "binds": self.binds
-                    }
+                    self._uuid,
+                    self.f_name,
+                    self.path
                 )
 
         else:
@@ -434,43 +364,56 @@ class DetailPan(MyFrame):
     def rename_source(self) -> None:
         src = self.source_var.get()
 
-        my_logger.debug(f"DetailPan.rename_source for {self.file_id}, old: {self.source}, new: {src}")
+        my_logger.debug(f"DetailPan.rename_source for {self._uuid}:, old: {self.source}, new: {src}")
 
         if src != self.source:
             res = messagebox.askyesno(master=self, title=LANG.get("s_rename"), message=LANG.get("s_rename"))
             if res:
-                self.master.brain.rename_source(
-                    self.file_id,
-                    self.source,
-                    self.path,
-                    self.labels,
-                    f"{dt.datetime.fromtimestamp(int(self.c_time)):%Y-%m-%d %H:%M:%S}",
-                    src
-                )
                 self.source = src
                 self.source_var.set(src)
+
+                self.master.brain.rename_source(
+                    self._uuid,
+                    self.source
+                )
+
                 # self.master.brain.history_manager.save_previous_state(self.uuid, "path", self.path)
         else:
             messagebox.showerror(master=self, title=LANG.get("s_rename"), message=LANG.get("same_source"))
 
+    def open_source_in_browser(self) -> None:  # moved to th brain
+        self.master.brain.open_source_in_browser(self.source_var.get())
+
+    # def update_fields(self, key: str, value: str | List) -> None:
+    #     if key == "labels":
+    #         self.lbls_listbox.delete(0, tk.END)
+    #         self.lbls_listbox.insert(tk.END, *value.split(" /// "))
+    #     elif key == "comment":
+    #         self.tbox_com.delete("1.0", tk.END)
+    #         self.tbox_com.insert("1.0", value)
+    #     else:
+    #         ...
+    #
+    #     my_logger.debug(f"DetailPan.update_fields: {self.file_id}: {key}: {value} - updated")
+
+    def add_labels_to_file(self) -> None:
+        self.master.brain.add_labels_to_file(self)
+
     def remove_labels(self) -> None:
         indexes = self.lbls_listbox.curselection()
         if indexes:
-            lables_to_remove = [self.lbls_listbox.get(index) for index in indexes]
+            labels_to_remove = [self.lbls_listbox.get(index) for index in indexes]
             for index in indexes:
                 self.lbls_listbox.delete(index)
 
-            self.labels = [label for label in self.labels if label not in lables_to_remove]
+            self.labels = [label for label in self.labels if label not in labels_to_remove]
 
-            my_logger.debug(f"DetailPan {self.file_id}: Labels to remove: {lables_to_remove}")
-            my_logger.debug(f"DetailPan {self.file_id}: Labels left: {self.labels}")
+            my_logger.debug(f"DetailPan {self._uuid}: Labels to remove: {labels_to_remove}")
+            my_logger.debug(f"DetailPan {self._uuid}: Labels left: {self.labels}")
 
             self.master.brain.move_or_remove_file_labels(
-                self.file_id,
-                self.source,
-                self.path,
-                self.labels,
-                f"{dt.datetime.fromtimestamp(int(self.c_time)):%Y-%m-%d %H:%M:%S}",
+                self._uuid,
+                self.labels
             )
 
     def move_lbl_up(self) -> None:
@@ -488,15 +431,12 @@ class DetailPan(MyFrame):
 
             self.lbls_listbox.selection_set(index - 1)
 
-            my_logger.debug(f"DetailPan {self.file_id}: Label moved up: {curr_label}")
-            my_logger.debug(f"DetailPan {self.file_id}: Current labels: {self.labels}")
+            my_logger.debug(f"DetailPan {self._uuid}: Label moved up: {curr_label}")
+            my_logger.debug(f"DetailPan {self._uuid}: Current labels: {self.labels}")
 
             self.master.brain.move_or_remove_file_labels(
-                self.file_id,
-                self.source,
-                self.path,
-                self.labels,
-                f"{dt.datetime.fromtimestamp(int(self.c_time)):%Y-%m-%d %H:%M:%S}",
+                self._uuid,
+                self.labels
             )
 
     def move_lbl_down(self) -> None:
@@ -514,26 +454,23 @@ class DetailPan(MyFrame):
 
             self.lbls_listbox.selection_set(index + 1)
 
-            my_logger.debug(f"DetailPan {self.file_id}: Label moved down: {curr_label}")
-            my_logger.debug(f"DetailPan {self.file_id}: Current labels: {self.labels}")
+            my_logger.debug(f"DetailPan {self._uuid}: Label moved down: {curr_label}")
+            my_logger.debug(f"DetailPan {self._uuid}: Current labels: {self.labels}")
 
             self.master.brain.move_or_remove_file_labels(
-                self.file_id,
-                self.source,
-                self.path,
-                self.labels,
-                f"{dt.datetime.fromtimestamp(int(self.c_time)):%Y-%m-%d %H:%M:%S}",
+                self._uuid,
+                self.labels
             )
 
     def alter_comment(self) -> None:
         comment = self.tbox_com.get("1.0", tk.END)[:-1]
 
-        my_logger.debug(f"DetailPan.alter_comment for {self.file_id}, old: {self.comment}, new: {comment}")
+        my_logger.debug(f"DetailPan.alter_comment for {self._uuid}, old: {self.comment}, new: {comment}")
 
         if comment != self.comment:
             res = messagebox.askyesno(master=self, title=LANG.get("alter_comment"), message=LANG.get("alter_comment"))
             if res:
-                self.master.brain.alter_comment(self.file_id, comment)
+                self.master.brain.alter_comment(self._uuid, comment)
                 self.comment = comment
         else:
             messagebox.showerror(master=self, title=LANG.get("alter_comment"), message=LANG.get("same_comment"))
@@ -541,9 +478,9 @@ class DetailPan(MyFrame):
 
 @log_exception_decorator(log_exception)
 class RotatingPan(MyFrame):
-    """Object placed in bottom left corner.
-    This is a frame for LabelPan, ProjectHistoryPan, FileHistoryPan, FilterPan.
-    Triggers DistributeMan likewise."""
+    """Object placed in the bottom right corner.
+    This is a frame for LabelPan, ProjectHistoryPan, FileHistoryPan, FilterPan, LookUpPan
+    """
     def __init__(self, *args, **kwargs) -> None:
         super().__init__(*args, **kwargs)
 
@@ -565,7 +502,7 @@ class RotatingPan(MyFrame):
         MyButton(master=self.menu_bar, text=LANG.get("proj_hist"), command=self.project_history_pan).grid(row=0, column=1)
         MyButton(master=self.menu_bar, text=LANG.get("lbl_pan"), command=self.label_pan).grid(row=0, column=2)
         MyButton(master=self.menu_bar, text=LANG.get("filter_pan"), command=self.filter_pan).grid(row=0, column=3)
-        MyButton(master=self.menu_bar, text=LANG.get("distr_man"), command=self.distribute).grid(row=0, column=4)
+        MyButton(master=self.menu_bar, text=LANG.get("look_up"), command=self.look_up_pan).grid(row=0, column=4)
 
         my_logger.debug("RotatingPan initialized")
 
@@ -593,8 +530,10 @@ class RotatingPan(MyFrame):
         self.pan = FilterPan(master=self)
         self.pan.grid(row=1, column=0)
 
-    def distribute(self) -> None:
-        DistributeMan(master=self)
+    def look_up_pan(self) -> None:
+        self.pan.destroy()
+        self.pan = LookUpPan(master=self)
+        self.pan.grid(row=1, column=0)
 
 
 @log_exception_decorator(log_exception)
@@ -734,8 +673,12 @@ class ProjectHistoryPan(MyFrame):
 
         MyLabel(master=self, text=LANG.get("proj_hist")).grid(row=0, column=0)
 
-        self.history_listbox = MyListbox(master=self)
-        self.history_listbox.grid(row=1, column=0)
+        self.history_tree = ttk.Treeview(master=self, show="headings")
+        self.history_tree.grid(row=1, column=0, sticky=tk.NSEW)
+        columns = ("record", )
+        self.history_tree.configure(columns=columns)
+
+        self.history_tree.heading("record", text=LANG.get("record"))
 
         MyButton(master=self, text=LANG.get("restore"), command=self.restore_for_project).grid(row=1, column=1)
 
@@ -743,59 +686,38 @@ class ProjectHistoryPan(MyFrame):
 
         my_logger.debug(f"ProjectHistoryPan established")
 
-    def set_project_history(self, project_history: List) -> None:
+    def set_project_history(self, project_history: Dict) -> None:
         my_logger.debug(f"ProjectHistoryPan.set_project_history started.")
-        self.history_listbox.delete(0, tk.END)
-        # project_history = {project: [f"{key} $$$ {value}" for key, value in dik.items() if isinstacne(value, str) else f"{key} $$$ {", ".join(value)}"] for project, dik in project_history.items()}
-        # project_history = [f"{project} $$$ {"".join(data)}" for project, data in project_history.items()]
+        self.history_tree.delete(*self.history_tree.get_children())
 
-        project_history = [record[0] for record in project_history]
+        self.dict_translator = {}
 
-        self.dict_translator = self.translation(project_history)
-        if self.dict_translator:
-            self.history_listbox.insert(tk.END, *self.dict_translator.keys())
-        else:
-            self.history_listbox.insert(tk.END, *project_history)
+        for key, data in project_history.items():
+            self.dict_translator[key] = data
 
-        self.history_listbox.insert(tk.END, *project_history)
+            # key, data = record
+            f_name_or_project, _uuid_or_project_time_record = key.split(", ", 1)
+            data = ", ".join([f"{key}: {val}" for key, val in data.items()])
+            self.history_tree.insert(
+                "",
+                tk.END,
+                iid=key,
+                values=(f"{f_name_or_project}: {data}", )
+            )
 
         my_logger.debug(f"ProjectHistoryPan.set_project_history: project history established")
 
-    def translation(self, file_history: List) -> Dict:
-        my_logger.debug(f"ProjectHistoryPan.translation started.")
-
-        temp = {}
-        if file_history == ["empty list"]:
-            my_logger.debug(f"ProjectHistoryPan.translation: Empty list")
-            return {}
-        for record in file_history:
-            file_id_, key, value, uuid_date = record.split(" $$$ ")
-            uuid_, date = uuid_date.split("_")
-
-            temp[f"{file_id_}: {key}: {value}: {dt.datetime.fromtimestamp(int(date)).strftime("%Y-%m-%d %H:%M:%S")}"] = record
-        my_logger.debug(f"ProjectHistoryPan.translation: Non-Empty list")
-        return temp
-
     def restore_for_project(self) -> None:
         my_logger.debug("ProjectHistoryPan.restore_for_project")
-        indexes = self.history_listbox.curselection()
-        if indexes:
-            index = indexes[0]
-            record = self.history_listbox.get(index)
+        key = self.history_tree.focus()
+        if key:
+            data = self.dict_translator.get(key)
 
-            record = self.dict_translator.get(record)
+            self.master.master.brain.restore_previous_state(key, data)
 
-            project, key, value, project_time = record.split(" $$$ ")
+            self.history_tree.delete(key)
 
-            # parse record and pass to the brain
-            self.master.master.brain.restore_previous_state(project,
-                                                            project_time,
-                                                            key,
-                                                            value)
-
-            self.history_listbox.delete(index)
-
-            my_logger.debug(f"Restoring for project accomplished")
+            my_logger.debug(f"Restoring for project accomplished: {key}")
 
 
 @log_exception_decorator(log_exception)
@@ -811,13 +733,20 @@ class FileHistoryPan(MyFrame):
 
         MyLabel(master=self, text=LANG.get("file_history")).grid(row=0, column=0)
 
+        self._uuid = ""
+
         self.file_id_var = tk.StringVar()
         self.file_id_var.set("")
 
         MyLabel(master=self, textvariable=self.file_id_var).grid(row=1, column=0)
 
-        self.history_listbox = MyListbox(master=self)
-        self.history_listbox.grid(row=2, column=0)
+        self.history_tree = ttk.Treeview(master=self, show="headings")
+        self.history_tree.grid(row=2, column=0, sticky=tk.NSEW)
+
+        columns = ("record", )
+        self.history_tree.configure(columns=columns)
+
+        self.history_tree.heading("record", text=LANG.get("record"))
 
         MyButton(master=self, text=LANG.get("restore"), command=self.restore_for_file).grid(row=2, column=1)
 
@@ -825,60 +754,41 @@ class FileHistoryPan(MyFrame):
 
         self.dict_translator = {}
 
-    def set_file_history(self, file_id, file_history) -> None:
+    def set_file_history(self, _uuid: str, f_name: str, file_history: Dict) -> None:
         my_logger.debug("FileHistoryPan.set_file_history")
-        self.file_id_var.set(file_id)
+        self._uuid = _uuid
 
-        self.history_listbox.delete(0, tk.END)
-        # file_history = {_uuid: [f"{key} $$$ {value}" for key, value in dik.items() if isinstacne(value, str) else f"{key} $$$ {", ".join(value)}"] for _uuid, dik in file_history.items()}
-        # file_history = [f"{_uuid} $$$ {"".join(data)}" for _uuid, data in file_history.items()]
+        self.file_id_var.set(f_name)
 
-        file_history = [record[0] for record in file_history]
+        self.history_tree.delete(*self.history_tree.get_children())
 
-        self.dict_translator = self.translation(file_history)
-        if self.dict_translator:
-            self.history_listbox.insert(tk.END, *self.dict_translator.keys())
-        else:
-            self.history_listbox.insert(tk.END, *file_history)
+        self.dict_translator = {}
 
-        my_logger.debug(f"FileHistoryPan.set_project_history: file history {file_id} established")
+        for key, data in file_history.items():
+            self.dict_translator[key] = data
 
-    def translation(self, file_history: List) -> Dict:
-        my_logger.debug(f"FileHistoryPan.translation started.")
+            to_listbox = []
+            for key_, data_ in data.items():
+                to_listbox.append(f"{key_}: {data_}")
+            self.history_tree.insert(
+                "", tk.END,
+                iid=key,
+                values=(", ".join(to_listbox), )
+            )
 
-        temp = {}
-        if file_history == ["empty list"]:
-            my_logger.debug(f"FileHistoryPan.translation: Empty list")
-            return {}
-        for record in file_history:
-            file_id_, key, value, uuid_date = record.split(" $$$ ")
-            uuid_, date = uuid_date.split("_")
-
-            temp[f"{file_id_}: {key}: {value}: {dt.datetime.fromtimestamp(int(date)).strftime("%Y-%m-%d %H:%M:%S")}"] = record
-            my_logger.debug(f"FileHistoryPan.translation: Non-Empty list")
-        return temp
+        my_logger.debug(f"FileHistoryPan.set_project_history: file history {f_name} established")
 
     def restore_for_file(self) -> None:
         my_logger.debug("FileHistoryPan.restore_for_file")
-        indexes = self.history_listbox.curselection()
-        if indexes:
-            index = indexes[0]
-            record = self.history_listbox.get(index)
+        key = self.history_tree.focus()
+        if key:
+            data = self.dict_translator.get(key)
 
-            record = self.dict_translator.get(record)
+            self.master.master.brain.restore_previous_state(key, data)
 
-            file_id, key, value, uuid_time = record.split(" $$$ ")
+            # self.history_tree.delete(key)
 
-            # value = value.split(" /// ")
-
-            self.master.master.brain.restore_previous_state(file_id,
-                                                            uuid_time,
-                                                            key,
-                                                            value)
-
-            self.history_listbox.delete(index)
-
-            my_logger.debug(f"Restoring for {file_id} accomplished")
+            my_logger.debug(f"Restoring for {key} accomplished")
 
 
 @log_exception_decorator(log_exception)
@@ -910,10 +820,19 @@ class FilterPan(MyFrame):
         self.option_frame_include.columnconfigure((0,1), weight=1)
         self.option_frame_include.rowconfigure(0, weight=0)
 
-        MyRadiobutton(master=self.option_frame_include, variable=self.operator_labels_include,
-                        text=LANG.get("or_include"), value=False).grid(column=0, row=0, sticky=tk.E)
-        MyRadiobutton(master=self.option_frame_include, variable=self.operator_labels_include,
-                        text=LANG.get("and_include"), value=True).grid(column=1, row=0, sticky=tk.W)
+        MyRadiobutton(
+            master=self.option_frame_include,
+            variable=self.operator_labels_include,
+            text=LANG.get("or_include"),
+            value=False
+        ).grid(column=0, row=0, sticky=tk.E)
+
+        MyRadiobutton(
+            master=self.option_frame_include,
+            variable=self.operator_labels_include,
+            text=LANG.get("and_include"),
+            value=True
+        ).grid(column=1, row=0, sticky=tk.W)
 
         self.lst_box_include = MyListbox(master=self, selectmode=tk.MULTIPLE, exportselection=False)
         self.lst_box_include.grid(row=4, column=0)
@@ -931,10 +850,19 @@ class FilterPan(MyFrame):
         self.option_frame_exclude.columnconfigure((0,1), weight=1)
         self.option_frame_exclude.rowconfigure(0, weight=0)
 
-        MyRadiobutton(master=self.option_frame_exclude, variable=self.operator_labels_exclude,
-                        text=LANG.get("or_exclude"), value=False).grid(column=0, row=0, sticky=tk.E)
-        MyRadiobutton(master=self.option_frame_exclude, variable=self.operator_labels_exclude,
-                        text=LANG.get("and_exclude"), value=True).grid(column=1, row=0, sticky=tk.W)
+        MyRadiobutton(
+            master=self.option_frame_exclude,
+            variable=self.operator_labels_exclude,
+            text=LANG.get("or_exclude"),
+            value=False
+        ).grid(column=0, row=0, sticky=tk.E)
+
+        MyRadiobutton(
+            master=self.option_frame_exclude,
+            variable=self.operator_labels_exclude,
+            text=LANG.get("and_exclude"),
+            value=True
+        ).grid(column=1, row=0, sticky=tk.W)
 
         self.lst_box_exclude = MyListbox(master=self, selectmode=tk.MULTIPLE, exportselection=False)
         self.lst_box_exclude.grid(row=8, column=0)
@@ -1007,10 +935,79 @@ class FilterPan(MyFrame):
 
 
 @log_exception_decorator(log_exception)
-class DistributeMan(ctk.CTkToplevel):
-    """Object embedded in independent window. I was too lazy to implement it inside MainWindow and export functions to TheBrain,
-    but it works so mission accomplished :)
+class LookUpPan(MyFrame):
+    def __init__(self, *args, **kwargs) -> None:
+        super().__init__(*args, **kwargs)
+        self.rowconfigure(0, weight=0)
+        self.rowconfigure(1, weight=0)
+        self.rowconfigure(2, weight=0)
+        self.rowconfigure(3, weight=0)
+        self.rowconfigure(4, weight=0)
+        self.rowconfigure(5, weight=0)
+        # self.rowconfigure(6, weight=0)
+        self.columnconfigure(0, weight=0)
+        self.columnconfigure(1, weight=1)
+        self.columnconfigure(2, weight=1)
 
+        MyLabel(master=self, text="Wyszukaj w aktualnie widocznych rekordach").grid(row=0, column=0, columnspan=3)
+
+        MyLabel(master=self, text="Zawiera:").grid(row=1, column=1)
+        MyLabel(master=self, text="Niezawiera:").grid(row=1, column=2)
+
+        MyLabel(master=self, text="W nazwie").grid(row=2, column=0)
+
+        self.name_include_var = tk.StringVar()
+        self.entry_name_include = MyEntry(master=self, textvariable=self.name_include_var)
+        self.entry_name_include.grid(row=2, column=1, sticky=tk.EW)
+
+        self.name_exclude_var = tk.StringVar()
+        self.ent_name_exclude = MyEntry(master=self, textvariable=self.name_exclude_var)
+        self.ent_name_exclude.grid(row=2, column=2, sticky=tk.EW)
+
+        MyLabel(master=self, text="W źródle").grid(row=3, column=0)
+
+        self.source_include_var = tk.StringVar()
+        self.ent_source_include = MyEntry(master=self, textvariable=self.source_include_var)
+        self.ent_source_include.grid(row=3, column=1, sticky=tk.EW)
+
+        self.source_exclude_var = tk.StringVar()
+        self.ent_source_exclude = MyEntry(master=self, textvariable=self.source_exclude_var)
+        self.ent_source_exclude.grid(row=3, column=2, sticky=tk.EW)
+
+        MyLabel(master=self, text="W komentarzu").grid(row=4, column=0)
+
+        self.comment_include_var = tk.StringVar()
+        self.ent_comment_include = MyEntry(master=self, textvariable=self.comment_include_var)
+        self.ent_comment_include.grid(row=4, column=1, sticky=tk.EW)
+
+        self.comment_exclude_var = tk.StringVar()
+        self.ent_comment_exclude = MyEntry(master=self, textvariable=self.comment_exclude_var)
+        self.ent_comment_exclude.grid(row=4, column=2, sticky=tk.EW)
+
+        MyButton(master=self, text="Wyszukaj", command=self.look_up).grid(row=5, column=0, columnspan=2)
+        MyButton(master=self, text=LANG.get("show_all"), command=self.show_all).grid(row=5, column=3)
+
+    def look_up(self):
+        my_logger.debug("LookUpPan.look_up")
+        to_include = [self.name_include_var.get(), self.source_include_var.get(), self.comment_include_var.get()]
+        to_include = [x if x else None for x in to_include]
+
+        to_exclude = [self.name_exclude_var.get(), self.source_exclude_var.get(), self.comment_exclude_var.get()]
+        to_exclude = [x if x else None for x in to_exclude]
+
+        my_logger.debug(f"LookUpPan.look_up: to_include: {to_include}, to_exclude: {to_exclude}")
+
+        self.master.master.brain.look_up(to_include, to_exclude)
+
+    def show_all(self) -> None:
+        my_logger.debug("LookUpPan.show_all")
+        self.master.master.brain.reset_tree()
+
+
+@log_exception_decorator(log_exception)
+class DistributeMan(ctk.CTkToplevel):
+    """Object embedded in an independent window. I was too lazy to implement it inside MainWindow and export functions to TheBrain,
+    but it works so mission accomplished :)
     """
     def __init__(self, *args, **kwargs) -> None:
         super().__init__(*args, **kwargs)
@@ -1043,7 +1040,7 @@ class DistributeMan(ctk.CTkToplevel):
         self.selection_frame.grid(column=0, row=0)
 
         self.selection_frame.columnconfigure(0, weight=1)
-        self.selection_frame.rowconfigure(0)
+        self.selection_frame.rowconfigure(0, weight=0)
         self.selection_frame.rowconfigure(1, weight=1)
         self.selection_frame.rowconfigure(2)
         self.selection_frame.rowconfigure(3)
@@ -1066,7 +1063,7 @@ class DistributeMan(ctk.CTkToplevel):
         self.combined_frame = MyFrame(master=self.main_frame)
         self.combined_frame.grid(column=1, row=0)
         self.combined_frame.columnconfigure(0, weight=1)
-        self.combined_frame.rowconfigure(0)
+        self.combined_frame.rowconfigure(0, weight=0)
         self.combined_frame.rowconfigure(1, weight=1)
         self.combined_frame.rowconfigure(2)
         self.combined_frame.rowconfigure(3)
@@ -1088,7 +1085,7 @@ class DistributeMan(ctk.CTkToplevel):
         self.folder_frame.grid(column=2, row=0)
 
         self.folder_frame.columnconfigure(0, weight=1)
-        self.folder_frame.rowconfigure(0)
+        self.folder_frame.rowconfigure(0, weight=0)
         self.folder_frame.rowconfigure(1, weight=1)
         self.folder_frame.rowconfigure(2)
         self.folder_frame.rowconfigure(3)
@@ -1289,10 +1286,10 @@ class Distributor(ctk.CTkToplevel):
 
         self.tree.bind('<<TreeviewSelect>>', self.selecting_item)
 
-        columns = ("id", "source", "path", "labels", "c_time")
+        columns = ("name", "source", "path", "labels", "c_time")
         self.tree.configure(columns=columns)
 
-        self.tree.heading("id", text=LANG.get("id"))
+        self.tree.heading("name", text=LANG.get("f_name"))
         self.tree.heading("source", text=LANG.get("source"))
         self.tree.heading("path", text=LANG.get("path"))
         self.tree.heading("labels", text=LANG.get("labels"))
@@ -1365,7 +1362,7 @@ class Distributor(ctk.CTkToplevel):
                         unique_ids.add(file_id)
 
                         old_path = self.master.brain.project_path.joinpath(i.get("path"))
-                        new_path = folder_path.joinpath(file_id)
+                        new_path = folder_path.joinpath(i.get("f_name"))
 
                         new_path_short = f"{new_path.parent.parent.name}\\{new_path.parent.name}\\{new_path.name}"
 
@@ -1373,7 +1370,7 @@ class Distributor(ctk.CTkToplevel):
 
                         shutil.copy2(old_path, new_path)
 
-                        ws.cell(row=row, column=col, value=file_id)
+                        ws.cell(row=row, column=col, value=i.get("f_name"))
                         ws.cell(row=row, column=col + 1, value=i.get("source"))
                         ws.cell(row=row, column=col + 2, value=str(old_path))
                         ws.cell(row=row, column=col + 3, value=str(new_path))
@@ -1429,7 +1426,7 @@ class Distributor(ctk.CTkToplevel):
                 for file_id, i in self.project["files"].items():
                     if label in i["labels"] and file_id not in unique_ids:
                         unique_ids.add(file_id)
-                        ws.cell(row=row, column=col, value=file_id)
+                        ws.cell(row=row, column=col, value=i.get("f_name"))
                         ws.cell(row=row, column=col + 1, value=i.get("source"))
                         ws.cell(row=row, column=col + 2, value=i.get("path"))
                         ws.cell(row=row, column=col + 3, value=" ___ ".join(i.get("labels")))
@@ -1495,7 +1492,7 @@ class Distributor(ctk.CTkToplevel):
                         unique_ids.add(file_id)
                         self.tree.insert(str(root_num),
                                          tk.END,
-                                         values=(file_id,
+                                         values=(i.get("f_name"),
                                                  i.get("source"),
                                                  i.get("path"),
                                                  i.get("labels"),
@@ -1602,3 +1599,4 @@ class SaveLoadSchema(ctk.CTkToplevel):
             self.lst_box.delete(selected[0])
 
             my_logger.debug(f"SaveLoadSchema.del_schema {schema} deleted")
+
