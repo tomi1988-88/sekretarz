@@ -25,7 +25,7 @@ OS = platform.system()
 #     def place(self, **kw):
 #         raise tk.TclError('Cannot use place with this widget')
 
-class MimicWheelEvent:
+class MimicWheelEvent:  # moja inwencja
     def __init__(self, x=1, y=1, delta=-120, num=5):
         self.x = x
         self.y = y
@@ -38,7 +38,7 @@ class ZoomAdvanced(ttk.Frame):
 
     def __init__(self, master, path):
         ''' Initialize the main Frame '''
-        ttk.Frame.__init__(self, master=master)
+        ttk.Frame.__init__(self, master=master)  #  todo: nie mam pojęcia dlaczego to działa a nie działa super().__init__...
         # self.master.title('Zoom with mouse wheel')
         # self.master.geometry('800x600')
         # Vertical and horizontal scrollbars for canvas
@@ -75,7 +75,7 @@ class ZoomAdvanced(ttk.Frame):
         self._center_view()
         self.show_image()
 
-    def _center_view(self):
+    def _center_view(self):  #  Moja inwencja
 
         self.canvas.xview(tk.SCROLL, 1, tk.UNITS)
         hor_step = self.canvas.canvasx(0)
@@ -165,10 +165,10 @@ class ZoomAdvanced(ttk.Frame):
                     return  # 1 pixel is bigger than the visible area
                 self.imscale *= self.delta
                 scale *= self.delta
-        self.canvas.scale('all', x, y, scale, scale)  # rescale all canvas objects
+        self.canvas.scale('all', x, y, scale, scale)  # todo po co skalowanie canvas??? # rescale all canvas objects
         self.show_image()
 
-    def show_image(self, event=None):
+    def show_image(self, event=None):  # todo: właściwie nie czaję dlaczego to działa. Rozumiem, że robi "okienko" na podstawie, którego wycina i powieksza fragment zdjecia
         ''' Show image on the canvas '''
         box_image = self.canvas.coords(self.container)  # get image area
         box_canvas = (self.canvas.canvasx(0),  # get visible area of the canvas
