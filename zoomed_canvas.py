@@ -165,7 +165,7 @@ class ZoomAdvanced(ttk.Frame):
                     return  # 1 pixel is bigger than the visible area
                 self.imscale *= self.delta
                 scale *= self.delta
-        self.canvas.scale('all', x, y, scale, scale)  # todo po co skalowanie canvas??? # rescale all canvas objects
+        self.canvas.scale('all', x, y, scale, scale)  # todo po co skalowanie canvas skoro potem idzie show_image()??? # rescale all canvas objects
         self.show_image()
 
     def show_image(self, event=None):  # todo: właściwie nie czaję dlaczego to działa. Rozumiem, że robi "okienko" na podstawie, którego wycina i powieksza fragment zdjecia
